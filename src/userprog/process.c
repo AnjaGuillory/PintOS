@@ -663,4 +663,21 @@ void the_stack(char *file_name, void **esp)
   palloc_free_page(token);
   palloc_free_page(str1);
 
+/*
+- break filename into tokens
+- "/bin/ls -l foo bar" - > "/bin/ls", "-l", "foo", "bar"
+- store each token in list
+- push the values in each token to the stack
+- somewhere in here do word alignment 
+  - (round the pointer to a multiple of 4 before first push)
+- push a null sentinel
+- push the address of each token from right to left
+  - &bar, &foo, ...
+- push argv (the pointer to the pointer of the token)
+- push argc (the number of arguments - aka length of list)
+- push return address (can be anything)
+- set esp to myEsp
+- call hexdump hex_dump(*esp, *esp, PHYS_BASE-*esp, 1)
+- pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo x’
+*/
 }
