@@ -20,8 +20,6 @@
 #include "kernel/list.h"
 
 /*Driver: Anja*/
-/*This is a list of arguments*/
-struct list arglist;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, const char * command, void (**eip) (void), void **esp);
