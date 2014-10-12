@@ -99,6 +99,14 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 
 void exit (int status) {
+	if(status == 0)
+		thread_exit();
+	else if(status == 1)
+		//call error checker
+}
 
-  
+void halt()
+{
+	/*Call wait on initial process*/
+	shutdown_power_off();
 }
