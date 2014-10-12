@@ -33,7 +33,7 @@ static bool load (const char *cmdline, const char * command, void (**eip) (void)
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy, *str1, *token, *saveptr1;
+  char *fn_copy;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -42,56 +42,7 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
 
-  //str1 = palloc_get_page (0);
-  //if (str1 == NULL)
-    //return TID_ERROR;
-
-
-  //strlcpy (str1, file_name, PGSIZE);
-
-  //token = strtok_r(str1, " ", &saveptr1);
-
   strlcpy(fn_copy, file_name, PGSIZE);
-
- // printf("FILENAME in execute %s\n", file_name);
-
-  /*Plan: Set up list of arguments before setting up stack*/
-  /*char *str1, *token;
-  char *saveptr1;
-
-  str1 = (char *) file_name;*/
-
-  /*Driver: Andrea*/
-  /*struct thread *current = thread_current();
-
-  for (;;str1 = NULL)
-  {
-    token = strtok_r(str1, " ", &saveptr1);
-
-    struct argstruct *arg;*/
-    
-    /* Allocate argument. */
-   /* arg = palloc_get_page (PAL_ZERO);
-    if (arg == NULL)
-      return TID_ERROR;
-*/
-    /* Assign argument to token */
-  /*  arg->argument = token;
-     
-    list_push_front(&current->arguments, &arg->arg_elem);
-    
-    if (token == NULL)
-      break;
-  }
-
-  struct list_elem *e;
-
-  for (e = list_begin (&(current->arguments)); e != list_end (&(current->arguments)); e = list_next (e))
-     {
-        struct argstruct *arg = list_entry (e, struct argstruct, arg_elem);
-        printf("Argument: %s\n", arg->argument);
-
-     }*/
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -375,39 +326,6 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
         }
     }
 
-/*Plan: Set up list of arguments before setting up stack*/
-  //char *str1, *token;
-  //char *saveptr1;
-  //int j;
-  //strlcpy (str1, file_name, PGSIZE);
-  //str1 = file_name;
-
-
-  /*Driver: Andrea*//*
-  struct thread *current = thread_current();
-  for (j = 1; ; j++, str1 = NULL) {
-     token = strtok_r(str1, " ", &saveptr1);
-     if (token == NULL)
-         break;
-     printf("%d: %s\n", j, token);
-
-     struct argstruct *arg;
-     arg->argument = token;
-     ASSERT(0);
-     ASSERT(arg->argument != token);
-     list_push_front(&current->arguments, &arg->arg_elem);
-     //ASSERT(list_empty(&current->arguments));
-   }
-
-  struct list_elem *e;
-
-  for (e = list_begin (&(current->arguments)); e != list_end (&(current->arguments)); e = list_next (e))
-     {
-        struct argstruct *arg = list_entry (e, struct argstruct, arg_elem);
-        printf("Argument: %s\n", arg->argument);
-
-     }*/
-
   /* Set up stack. */
   if (!setup_stack ((char *) command, esp))
     goto done;
@@ -574,59 +492,51 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
-/* struct tokens {
-  struct list_elem tok;
-  char * token;
-}; 
-
-  struct list token_list;
-  list_init (&token_list);
-
-  struct tokens toke = palloc_get_page(0);
-
-  list_push_front(&token_list, )*/
 
 void the_stack(char *file_name, void **esp)
 {
-
-
   char *myEsp = (char *) *esp;
   char **token = palloc_get_page(PAL_ZERO);
   char **argv = palloc_get_page(PAL_ZERO);
-
   char *str1 = palloc_get_page (0);
-  strlcpy (str1, file_name, PGSIZE);
-  int argc = 0;
   char *sptr1;
+  int argc = 0;
+  
+  /* Make a copy of file_name */
+  strlcpy (str1, file_name, PGSIZE);
 
   printf("original esp %p\n", myEsp);
 
-  int i = 0;
-  for (;;str1 = NULL) {
-    token[i] = strtok_r(str1, " ", &sptr1);
+  /* Break file_name into tokens using
+  * "/bin/ls -l foo bar" - > "/bin/ls", "-l", "foo", "bar"
+  */
 
-    
-    if (token[i] == NULL)
+  int tk_indx = 0;
+  for (;;str1 = NULL) {
+    token[tk_indx] = strtok_r(str1, " ", &sptr1);
+
+    /* Check if strtok_r() returns a null pointer */
+    if (token[tk_indx] == NULL)
       break;
 
-    i++;
+    tk_indx++;
   }
 
-
-  int s;
-  argc = i;
-  i--;
-  for (s = i; s >= 0; s--){
+  argc = tk_indx; /* Set argc to the count of the token array (# of args) */
+  int s = tk_indx-1;
+  for (s; s >= 0; s--){
     myEsp -= strlen(token[s]) + 1;
-    argv[i] = myEsp;
+    argv[s] = myEsp;
     memcpy(myEsp, token[s], strlen(token[s]) + 1);
-    printf("%p, argv[%d] '%s' char[%d]\n", myEsp, i, token[s], strlen(token[s]) +1);
-    i--;
+    printf("%p, argv[%d] '%s' char[%d]\n", myEsp, s, token[s], strlen(token[s]) +1);
   }
 
   printf("length: %d\n", argc);
+
+  /* Null Sentinel */
   argv[argc] = 0;
-  // align to word size
+
+  /* Align to word size */
   int x = *myEsp % 4;
   if (x != 0)
   {
@@ -634,31 +544,33 @@ void the_stack(char *file_name, void **esp)
     memcpy(myEsp, &argv[argc], x);
   } 
 
+  /* Push the addresses of args onto the stack */
   int j;
   for (j = argc; j >= 0; j--) 
   {
     myEsp -= sizeof(char *);
-    printf("address %p\n", argv[j]);
+    printf("%p, argv[%d] '%p' char*\n", myEsp, j, argv[j]);
     memcpy(myEsp, &argv[j], sizeof(char *));
   }
 
-  // push argv
+  // Push argv
   char * tempEsp = myEsp;
   myEsp -= sizeof(char **);
   memcpy(myEsp, &tempEsp, sizeof(char **));
 
-  // push argc 
+  // Push argc 
   myEsp -= sizeof(int);
   memcpy(myEsp, &argc, sizeof(int));
 
-  // push return address
+  // Push return address
   myEsp -= sizeof(char *);
   memcpy(myEsp, &argv[argc], sizeof(char *));
 
-
+  /* Set esp back */
   *esp = myEsp;
   hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
+  /* Free pages */
   palloc_free_page(argv);
   palloc_free_page(token);
   palloc_free_page(str1);
