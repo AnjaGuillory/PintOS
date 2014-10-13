@@ -535,7 +535,8 @@ void the_stack(char *file_name, void **esp)
   argv[argc] = 0;
 
   /* Align to word size */
-  int x = *myEsp % 4;
+  /* Need cast to unsigned int so remainder isn't negative */
+  int x = (unsigned int) myEsp % 4;
   if (x != 0)
   {
     myEsp -= x;
