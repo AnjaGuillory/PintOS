@@ -20,8 +20,6 @@
 #include "kernel/list.h"
 
 /*Driver: Anja*/
-/*This is a list of arguments*/
-struct list arglist;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, const char * command, void (**eip) (void), void **esp);
@@ -537,12 +535,13 @@ void the_stack(char *file_name, void **esp)
   argv[argc] = 0;
 
   /* Align to word size */
-  int x = *myEsp % 4;
+  int x = (unsigned int)myEsp % 4;
+  printf("%i\n", x);
   if (x != 0)
   {
     myEsp -= x;
-    memcpy(myEsp, &argv[argc], x);
-  } 
+    // memcpy(myEsp, &argv[argc], x);
+  }
 
   /* Push the addresses of args onto the stack */
   int j;
