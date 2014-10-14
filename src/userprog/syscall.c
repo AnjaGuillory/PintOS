@@ -26,15 +26,18 @@ syscall_handler (struct intr_frame *f UNUSED)
   if (is_user_vaddr(f->esp)){
     if (lookup_page(activepd, f->esp, 0) == NULL){
       /* terminate the process and free its resources */
-      pagedir_destroy(activepd);
+      // pagedir_destroy(activepd);
       thread_exit();
     }
   }
 
   /* Check if pointer is a kernel virtual address (BAD) */
   else if (is_kernel_vaddr(f->esp)){
-    /* terminate the process and free its resources */
-    pagedir_destroy(activepd);
+    /* terminate the process and free its resources 
+    * don't need to call pagedir_destroy because it is called by process_exit()
+    * which is called by thread_exit()
+    */
+    // pagedir_destroy(activepd); 
     thread_exit();
   }
 
@@ -97,15 +100,29 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Get any system call arguments */
   /* Switch statement checks the number and calls the right function */
   /* Implement each function */
-  thread_exit ();
+  // thread_exit ();
 }
 
 int exit (int status) {
-  if(status == 0)
-    thread_exit();
-  else if(status == 1)
-    thread_exit();
-    //call error checker
+  struct thread *cur = thread_current();
+  struct thread *parent = cur->parent;
+  struct list children_list = parent->children;
+
+  struct list_elem *e;
+  if (!list_empty(&children_list)) {
+
+    for (e = list_begin (&children_list); e != list_end (&children_list);
+               e = list_next (e))
+            {
+              struct thread *j = list_entry (e, struct thread, child);
+              if (j->tid == cur->tid) {
+                list_remove(e);
+                break;
+              }
+            }
+
+  }
+  thread_exit();
   return status;
 }
 
