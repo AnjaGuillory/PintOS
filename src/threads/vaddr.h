@@ -86,4 +86,15 @@ vtop (const void *vaddr)
   return (uintptr_t) vaddr - (uintptr_t) PHYS_BASE;
 }
 
+/* Returns physical address at which user virtual address VADDR
+   is mapped. */
+static inline uintptr_t
+user_vtop (const void *vaddr)
+{
+  ASSERT (is_user_vaddr (vaddr));
+
+  return (uintptr_t) vaddr - (uintptr_t) PHYS_BASE;
+}
+
+
 #endif /* threads/vaddr.h */

@@ -21,10 +21,10 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Check if pointer is a user virtual address 
    * NEED: add check for unmapped territory
    */
+
   uint32_t *activepd = active_pd();
   if (is_user_vaddr(f->esp)){
     if (lookup_page(activepd, f->esp, 0) == NULL){
-
       /* terminate the process and free its resources */
       pagedir_destroy(activepd);
       thread_exit();
@@ -33,7 +33,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   /* Check if pointer is a kernel virtual address (BAD) */
   else if (is_kernel_vaddr(f->esp)){
-
     /* terminate the process and free its resources */
     pagedir_destroy(activepd);
     thread_exit();
@@ -91,7 +90,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       // CLOSE
       break;
   } 
-
   
   printf ("system call!\n");
   
@@ -101,6 +99,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Implement each function */
   thread_exit ();
 }
+
 
 int exit (int status) {
   if(status == 0)
@@ -113,6 +112,6 @@ int exit (int status) {
 
 void halt()
 {
-  // Call wait on initial process
-  shutdown_power_off();
-} 
+	/*Call wait on initial process*/
+	shutdown_power_off();
+}
