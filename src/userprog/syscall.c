@@ -26,28 +26,28 @@ syscall_handler (struct intr_frame *f UNUSED)
   if (is_user_vaddr(f->esp)){
     if (lookup_page(activepd, f->esp, 0) == NULL){
       /* terminate the process and free its resources */
-      //pagedir_destroy(activepd);
-      //thread_exit();
-    //}
-  //}
+      pagedir_destroy(activepd);
+      thread_exit();
+    }
+  }
 
   /* Check if pointer is a kernel virtual address (BAD) */
-  //else if (is_kernel_vaddr(f->esp)){
+  else if (is_kernel_vaddr(f->esp)){
     /* terminate the process and free its resources */
-    //pagedir_destroy(activepd);
-    //thread_exit();
-  //}
+    pagedir_destroy(activepd);
+    thread_exit();
+  }
 
-  //char* myEsp = f->esp;
+  char* myEsp = f->esp;
 
-  //uint32_t num = *myEsp;
-  //printf("num: %d\n", num);
+  uint32_t num = *myEsp;
+  printf("num: %d\n", num);
 
   myEsp -= 4;
   int status;
 
   /* SWITCHHHHHH */
-  /*switch(num) {
+  switch(num) {
     case 0:
       // HALT
       break;
@@ -88,7 +88,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case 12:
       // CLOSE
-      break;*/
+      break;
   } 
   
   printf ("system call!\n");
@@ -109,7 +109,7 @@ int exit (int status) {
   return status;
 }
 
-void halt()
+void halt(void)
 {
 	/*Call wait on initial process*/
 	shutdown_power_off();
