@@ -535,13 +535,13 @@ void the_stack(char *file_name, void **esp)
   argv[argc] = 0;
 
   /* Align to word size */
-  /* Need cast to unsigned int so remainder isn't negative */
-  int x = (unsigned int) myEsp % 4;
+  int x = (unsigned int)myEsp % 4;
+  printf("%i\n", x);
   if (x != 0)
   {
     myEsp -= x;
-    memcpy(myEsp, &argv[argc], x);
-  } 
+    // memcpy(myEsp, &argv[argc], x);
+  }
 
   /* Push the addresses of args onto the stack */
   int j;

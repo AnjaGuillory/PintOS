@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -18,11 +19,12 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   /* Check if pointer is a user virtual address 
-  * NEED: add check for unmapped territory
-  */
-  //uint32_t *activepd = active_pd();
-  //if (is_user_vaddr(f->esp)){
-    //if (lookup_page(activepd, f->esp, 0) == NULL){
+   * NEED: add check for unmapped territory
+   */
+
+  uint32_t *activepd = active_pd();
+  if (is_user_vaddr(f->esp)){
+    if (lookup_page(activepd, f->esp, 0) == NULL){
       /* terminate the process and free its resources */
       //pagedir_destroy(activepd);
       //thread_exit();
@@ -41,7 +43,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   //uint32_t num = *myEsp;
   //printf("num: %d\n", num);
 
-  //myEsp -= 4;
+  myEsp -= 4;
+  int status;
 
   /* SWITCHHHHHH */
   /*switch(num) {
@@ -50,8 +53,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case 1:
       // EXIT
-      int status = *myEsp;
-      exit(status);
+      status = *myEsp;
+      status = exit(status);
       break;
     case 2:
       // EXEC
@@ -85,8 +88,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case 12:
       // CLOSE
-      break;
-  }*/
+      break;*/
+  } 
   
   printf ("system call!\n");
   
@@ -97,8 +100,17 @@ syscall_handler (struct intr_frame *f UNUSED)
   thread_exit ();
 }
 
+int exit (int status) {
+  if(status == 0)
+    thread_exit();
+  else if(status == 1)
+    thread_exit();
+    //call error checker
+  return status;
+}
 
-/*void exit (int status) {
-
-  
-}*/
+void halt()
+{
+	/*Call wait on initial process*/
+	shutdown_power_off();
+}
