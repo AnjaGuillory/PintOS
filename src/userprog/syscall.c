@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "filesys/filesys.h"
 #include "devices/shutdown.h"
 #include "lib/kernel/console.h"
 
@@ -20,7 +21,7 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 
-  char* myEsp = f->esp;
+  int * myEsp = f->esp;
   /* Check if pointer is a user virtual address 
    * NEED: add check for unmapped territory
    */
@@ -47,17 +48,11 @@ syscall_handler (struct intr_frame *f UNUSED)
   uint32_t num = *myEsp;
   printf ("num: %d\n", num);
 
-  myEsp += 4;
+  // myEsp += 4;
   int status;
   int fd;
   void *buffer;
   unsigned size;
-
-  f->esp = myEsp;
-  hex_dump(f->esp, f->esp, PHYS_BASE-f->esp, 1);
-  // void *buffer;
-
-
 
   /* SWITCHHHHHH */
   switch (num) {
@@ -92,11 +87,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case 9:
       // WRITE
-      fd = *myEsp;
-      myEsp += 4;
-      buffer = *myEsp;
-      myEsp += 4;
-      size = *myEsp;
+      fd = *(myEsp + 1);
+      buffer = *(myEsp + 2);
+      size =  *(myEsp + 3);
       int bytes = write (fd, buffer, size);
       break;
     case 10:
@@ -116,7 +109,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Get any system call arguments */
   /* Switch statement checks the number and calls the right function */
   /* Implement each function */
-  thread_exit ();
+  // thread_exit ();
 }
 
 void exit (int status) {
@@ -155,15 +148,34 @@ int write (int fd, const void *buffer, unsigned size) {
   printf ("%d\n", fd);
   printf("%p\n", buffer);
   printf("%d\n", size);
-
+  int charWritten = 0;
+  
   if (fd == 0){
     printf("dsnf");
+    return 0;
   }
 
   else if (fd == 1){
-    putbuf((char *)buffer, size);
-    console_print_stats();
+    
+
+    if (size < 300) {
+      putbuf((char *) buffer + charWritten, size);
+      charWritten += size;
+    }
+    else {
+      while (size > 300) {
+      putbuf((char *)buffer + charWritten, 300);
+      charWritten += 300;
+      size -= 300;
+      console_print_stats();
+      }
+
+      /* calls putbuf on the rest of the buffer */
+      putbuf((char *)buffer + charWritten, size);
+      charWritten += size;
+   }
+
   }
 
-  return 0;
+  return charWritten;
 }
