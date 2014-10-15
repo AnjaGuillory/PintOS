@@ -50,6 +50,21 @@ Andrea, 30 minutes
 Anja, 30 minutes
 Dara, 30 minutes
 
+10/13, 12:00-2:30, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/14, 5:00-8:00, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
 So far what was done:
 An argument list was declared inside of thread struct that holds a list of argument structures. These argument structures hold a list element and the actual argument string. While parsing the command line, we declare an argument struct for each argument and initialize these char arguments to the tokens that are parsed. We are trying to print these out, however this is where we are stuck. 
 

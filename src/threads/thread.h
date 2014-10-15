@@ -97,6 +97,8 @@ struct thread
 
     struct list children;               /*Bookkeep with list of children*/
     struct list_elem child;             /*Element for list of children*/
+
+    struct thread *parent;               /* Parent for current thread */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

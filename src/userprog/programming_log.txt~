@@ -17,6 +17,39 @@ Anja, 30 minutes
 Dara, 30 minutes
 Andrea, 30 minutes
 
+10/10, 2:00-7:00, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/11, 10:00-3:00, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
+10/12, 2:00-5:30, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
 So far what was done:
 An argument list was declared inside of thread struct that holds a list of argument structures. These argument structures hold a list element and the actual argument string. While parsing the command line, we declare an argument struct for each argument and initialize these char arguments to the tokens that are parsed. We are trying to print these out, however this is where we are stuck. 
 
@@ -31,3 +64,10 @@ The argument struct, arguments list and arg_elem in threads are deleted.
 Now, a new function called the_stack(file_name,esp) is created. Here we set up the program stack by incrementing and decrementing esp, as well as a temporary register in order to copy the parsed tokens onto the stack, and then copy the addresses of the arguments appropriately and orderly. Before this procedure, we parse the command line in this function also. 
 
 Currently, we do not have any recordings of what the stack pointer and arguments statuses are. 
+
+LATEST UPDATE
+ 
+ Added a list of children (as well as child list element) to bookkeep each threads' children. Also, in thread_create, we added a push to this list the child that the current process is creating. In thread_init, we initialize the parent thread's list of children. This was created so that upon waiting for a child, we can access the child's information to wait for by identifying it by the tid that is passed into the wait method.
+
+
+ For exit (and wait), implement a marker to tell if a child's parent is waiting or not in order to send an exit status to a parent or just the kernel. 

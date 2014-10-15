@@ -209,7 +209,8 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  
+  t->parent = thread_current();
   list_push_front(&(thread_current()->children), &t->child); /*After thread calls creation of child 
                                                             and initializes this child, add child 
                                                             to current thread (thread that is calling
