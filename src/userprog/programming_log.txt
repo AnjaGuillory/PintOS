@@ -65,6 +65,12 @@ Andrea, 30 minutes
 Anja, 30 minutes
 Dara, 30 minutes
 
+10/15, 5:30-7:00, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+
 So far what was done:
 An argument list was declared inside of thread struct that holds a list of argument structures. These argument structures hold a list element and the actual argument string. While parsing the command line, we declare an argument struct for each argument and initialize these char arguments to the tokens that are parsed. We are trying to print these out, however this is where we are stuck. 
 
@@ -86,3 +92,10 @@ LATEST UPDATE
 
 
  For exit (and wait), implement a marker to tell if a child's parent is waiting or not in order to send an exit status to a parent or just the kernel. 
+
+UPDATE:
+
+We added create and open. The currently added function return values are put into EAX in the switch cases. 
+Create causes some compiling errors. Open just gets the name of the file and creates a file struct. It 
+checks to see if the file struct is null (so error if so), otherwise returns 0. We need to figure out how to 
+implement a file descriptor that does not use the reserved 0 and 1 for console. 

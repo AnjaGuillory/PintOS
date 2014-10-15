@@ -53,7 +53,10 @@ syscall_handler (struct intr_frame *f UNUSED)
   int fd;
   void *buffer;
   unsigned size;
-
+  const char *file;
+  unsigned initial_size;
+  const char *file_sys;
+  bool creation = 0;
   /* SWITCHHHHHH */
   switch (num) {
     case 0:
@@ -61,8 +64,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case 1:
       // EXIT
-      status = *myEsp;
-      exit (status);
+      status = *(myEsp + 1);
+      int exit_status = exit (status);
+      f->eax = exit_status;
       break;
     case 2:
       // EXEC
@@ -72,12 +76,24 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case 4:
       // CREATE
+      file = *(myEsp + 1);
+      initial_size = *(myEsp + 2);
+      //creation = create(file, initial_size);
+      //f->eax = creation;
       break;
     case 5:
       // REMOVE
       break;
     case 6:
       // OPEN
+      if(creation)
+      {
+        file_sys = *(myEsp + 1);
+        int file_des = open(file_sys);
+        f->eax = file_des;
+      } else {
+        f->eax = -1;
+      }
       break;
     case 7:
       // FILESIZE
@@ -91,6 +107,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       buffer = *(myEsp + 2);
       size =  *(myEsp + 3);
       int bytes = write (fd, buffer, size);
+      f->eax = bytes;
       break;
     case 10:
       // SEEK
@@ -112,7 +129,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   // thread_exit ();
 }
 
-void exit (int status) {
+int exit (int status) {
   struct thread *cur = thread_current ();
   struct thread *parent = cur->parent;
   struct list children_list = parent->children;
@@ -134,7 +151,7 @@ void exit (int status) {
   thread_exit();
 
   // Instead of returning status, we can set wait -> status pointer to the status
-  // return status;
+  return status;
 }
 
 void halt(void)
@@ -178,4 +195,22 @@ int write (int fd, const void *buffer, unsigned size) {
   }
 
   return charWritten;
+}
+
+/*bool create (const char *file, unsigned initial_size) 
+{
+  return filesys_create (file, initial_size);
+}*/
+
+int open (const char *file)  {
+
+  struct file *openFile = filesys_open(file);
+
+  if(openFile == NULL)
+  {
+    return -1;
+  }
+
+  return 0;
+
 }
