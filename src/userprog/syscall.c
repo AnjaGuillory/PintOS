@@ -11,6 +11,15 @@
 #include "threads/palloc.h"
 #include "filesys/file.h"
 
+/* Struct that holds the file descriptor */
+struct filing {
+    int fd;
+    struct list_elem elms;
+};
+
+/* An array of files */
+struct file *files[128];
+
 static void syscall_handler (struct intr_frame *);
 
 void
@@ -48,7 +57,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
 
   uint32_t num = *myEsp;
-  printf ("num: %d\n", num);
+  //printf ("num: %d\n", num);
 
   // myEsp += 4;
   int status;
@@ -59,6 +68,16 @@ syscall_handler (struct intr_frame *f UNUSED)
   unsigned initial_size;
   const char *file_sys;
   bool creation = 0;
+
+  files[0] = palloc_get_page(0);
+  struct filing *fil = palloc_get_page(0);
+  
+  /* File descriptors cannot be 0 or 1 */
+  fil->fd = 2;
+
+  /* Creates a node with the first file descriptor open */
+  list_push_back(&thread_current()->open_fd, &fil->elms);
+
   /* SWITCHHHHHH */
   switch (num) {
     case 0:
@@ -122,13 +141,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
   } 
   
-  printf ("system call!\n");
+  //printf ("system call!\n");
   
   /* Get the system call number */
   /* Get any system call arguments */
   /* Switch statement checks the number and calls the right function */
   /* Implement each function */
-  // thread_exit ();
+  //thread_exit ();
 }
 
 int exit (int status) {
@@ -162,35 +181,21 @@ void halt(void)
   shutdown_power_off ();
 }
 
-/* Struct that holds the file and file descriptor */
-struct files {
-    struct file * filed;
-    int fd;
-    struct list_elem elms;
-};
 
 int write (int fd, const void *buffer, unsigned size) {
 
-  printf ("%d\n", fd);
-  printf("%p\n", buffer);
-  printf("%d\n", size);
+  //printf ("%d\n", fd);
+  //printf("%p\n", buffer);
+  //printf("%d\n", size);
   int charWritten = 0;
   
   if (fd > 1){
-    struct thread *cur = thread_current();
+    
+    /* Gets the file from the files array */
+    struct file * fil = files[fd];
 
-    struct list_elem *e;
-
-    /* Go through the list of open files looking for the fd */
-    for (e = list_begin (&cur->open_files); e != list_end (&cur->open_files);
-        e = list_next (e))
-    {
-      struct files *f = list_entry (e, struct files, elms);
-      if (f->fd == fd) {
-        /* Write to f->filed */
-        charWritten = file_write (f->filed, (char *) buffer, size);
-      }
-    }
+    /* Writes to the file and puts number of written characters */
+    charWritten = file_write (fil, (char *) buffer, size); 
 
     //return charWritten;
   }
@@ -226,29 +231,34 @@ int write (int fd, const void *buffer, unsigned size) {
 }*/
 
 int open (const char *file)  {
-
-  /* Allocate space for the struct fil */
-  struct files *fil = palloc_get_page(0);
-
+  
   /* Opens the file */
   struct file *openFile = filesys_open(file);
 
-  /* Checks if the file system was able to open the file */
-  if(openFile == NULL)
+  struct thread *cur = thread_current();
+
+  struct filing *fil = list_entry(list_pop_front(&cur->open_fd), struct filing, elms);
+  
+  /* Allocate space for the index */
+  files[fil->fd] = palloc_get_page(0);
+
+  /* Checks if the file system was able to open the file 
+      and if the number of files has exceeded 128 */
+  if(openFile == NULL || fil->fd > 127)
   {
-    palloc_free_page(fil);
+    palloc_free_page(files[fil->fd]);
     return -1;
   }
 
-  fil->filed = openFile;
+  /* Sets the file descriptor to a open fd */
+  files[fil->fd] = openFile;
 
-  struct thread *cur = thread_current();
+  int fd = fil->fd;
+  fil->fd++;
+  //fil->fd = list_size(&(cur->open_files)) + 2;
 
-  /* Sets the file descriptor (Cannot be 0 or 1) */
-  fil->fd = list_size(&(cur->open_files)) + 2;
+  /* Adds the next index to the list of open fds for the thread */
+  list_push_back(&(cur->open_fd), &fil->elms);
 
-  /* Adds the current file to the list of open files for the thread */
-  list_push_back(&(cur->open_files), &fil->elms);
-
-  return fil->fd;
+  return fd;
 }

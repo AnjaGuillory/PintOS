@@ -100,7 +100,7 @@ struct thread
 
     struct thread *parent;               /* Parent for current thread */
 
-    struct list open_files;              /* list of open files */
+    struct list open_fd;                 /* list of file descriptors */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

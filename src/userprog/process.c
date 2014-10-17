@@ -65,7 +65,7 @@ start_process (void *file_name_)
 
   token = strtok_r(str1, " ", &saveptr1);
 
-  printf("FILENAME in start %s\n", file_name);
+  //printf("FILENAME in start %s\n", file_name);
   struct intr_frame if_;
   bool success;
 
@@ -503,7 +503,7 @@ void the_stack(char *file_name, void **esp)
   /* Make a copy of file_name */
   strlcpy (str1, file_name, PGSIZE);
 
-  printf("original esp %p\n", myEsp);
+  //printf("original esp %p\n", myEsp);
 
   /* Break file_name into tokens using
   * "/bin/ls -l foo bar" - > "/bin/ls", "-l", "foo", "bar"
@@ -526,17 +526,17 @@ void the_stack(char *file_name, void **esp)
     myEsp -= strlen(token[s]) + 1;
     argv[s] = myEsp;
     memcpy(myEsp, token[s], strlen(token[s]) + 1);
-    printf("%p, argv[%d] '%s' char[%d]\n", myEsp, s, token[s], strlen(token[s]) +1);
+    //printf("%p, argv[%d] '%s' char[%d]\n", myEsp, s, token[s], strlen(token[s]) +1);
   }
 
-  printf("length: %d\n", argc);
+  //printf("length: %d\n", argc);
 
   /* Null Sentinel */
   argv[argc] = 0;
 
   /* Align to word size */
   int x = (unsigned int)myEsp % 4;
-  printf("%i\n", x);
+  //printf("%i\n", x);
   if (x != 0)
   {
     myEsp -= x;
@@ -548,7 +548,7 @@ void the_stack(char *file_name, void **esp)
   for (j = argc; j >= 0; j--) 
   {
     myEsp -= sizeof(char *);
-    printf("%p, argv[%d] '%p' char*\n", myEsp, j, argv[j]);
+    //printf("%p, argv[%d] '%p' char*\n", myEsp, j, argv[j]);
     memcpy(myEsp, &argv[j], sizeof(char *));
   }
 

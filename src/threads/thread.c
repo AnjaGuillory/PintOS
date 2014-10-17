@@ -477,7 +477,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_init(&(t->children)); /*Initialize list of children*/
-  list_init(&(t->open_files));
+  list_init(&(t->open_fd));
   list_push_back (&all_list, &t->allelem);
 }
 
