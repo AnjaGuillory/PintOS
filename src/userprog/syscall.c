@@ -8,6 +8,8 @@
 #include "filesys/filesys.h"
 #include "devices/shutdown.h"
 #include "lib/kernel/console.h"
+#include "threads/palloc.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -160,6 +162,13 @@ void halt(void)
   shutdown_power_off ();
 }
 
+/* Struct that holds the file and file descriptor */
+struct files {
+    struct file * filed;
+    int fd;
+    struct list_elem elms;
+};
+
 int write (int fd, const void *buffer, unsigned size) {
 
   printf ("%d\n", fd);
@@ -167,9 +176,23 @@ int write (int fd, const void *buffer, unsigned size) {
   printf("%d\n", size);
   int charWritten = 0;
   
-  if (fd == 0){
-    printf("dsnf");
-    return 0;
+  if (fd > 1){
+    struct thread *cur = thread_current();
+
+    struct list_elem *e;
+
+    /* Go through the list of open files looking for the fd */
+    for (e = list_begin (&cur->open_files); e != list_end (&cur->open_files);
+        e = list_next (e))
+    {
+      struct files *f = list_entry (e, struct files, elms);
+      if (f->fd == fd) {
+        /* Write to f->filed */
+        charWritten = file_write (f->filed, (char *) buffer, size);
+      }
+    }
+
+    //return charWritten;
   }
 
   else if (fd == 1){
@@ -204,13 +227,28 @@ int write (int fd, const void *buffer, unsigned size) {
 
 int open (const char *file)  {
 
+  /* Allocate space for the struct fil */
+  struct files *fil = palloc_get_page(0);
+
+  /* Opens the file */
   struct file *openFile = filesys_open(file);
 
+  /* Checks if the file system was able to open the file */
   if(openFile == NULL)
   {
+    palloc_free_page(fil);
     return -1;
   }
 
-  return 0;
+  fil->filed = openFile;
 
+  struct thread *cur = thread_current();
+
+  /* Sets the file descriptor (Cannot be 0 or 1) */
+  fil->fd = list_size(&(cur->open_files)) + 2;
+
+  /* Adds the current file to the list of open files for the thread */
+  list_push_back(&(cur->open_files), &fil->elms);
+
+  return fil->fd;
 }

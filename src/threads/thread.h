@@ -99,6 +99,8 @@ struct thread
     struct list_elem child;             /*Element for list of children*/
 
     struct thread *parent;               /* Parent for current thread */
+
+    struct list open_files;              /* list of open files */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
