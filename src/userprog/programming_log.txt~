@@ -50,6 +50,34 @@ Andrea, 30 minutes
 Anja, 30 minutes
 Dara, 30 minutes
 
+10/13, 12:00-2:30, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/14, 5:00-8:00, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
+10/15, 5:30-7:00, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/17, 5:00-8:00, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
 So far what was done:
 An argument list was declared inside of thread struct that holds a list of argument structures. These argument structures hold a list element and the actual argument string. While parsing the command line, we declare an argument struct for each argument and initialize these char arguments to the tokens that are parsed. We are trying to print these out, however this is where we are stuck. 
 
@@ -71,3 +99,22 @@ LATEST UPDATE
 
 
  For exit (and wait), implement a marker to tell if a child's parent is waiting or not in order to send an exit status to a parent or just the kernel. 
+
+UPDATE:
+
+We added create and open. The currently added function return values are put into EAX in the switch cases. 
+Create causes some compiling errors. Open just gets the name of the file and creates a file struct. It 
+checks to see if the file struct is null (so error if so), otherwise returns 0. We need to figure out how to 
+implement a file descriptor that does not use the reserved 0 and 1 for console. 
+
+
+UPDATE 10/17
+
+We made a list of available fd positions and an array of file structs that hold the opened file and hold file descriptors. This is so that we can keep up with amount of files opened (which can only reach up to 128 open files) and to keep up with available file descriptors that can be used. This helps to quicken the process instead of searching the the 128 sized array for an open index as a file descriptor. All of create tests work. All open and Write tests work except for:
+open-bad-ptr, open-null, and write-bad-fd, write-bad-ptr, write-stdin
+exit works as well, but halt does not work.
+
+We created a global_status that takes the status inputed into exit, so that after exiting, f->eax will take the exit value and hold it for the parent. 
+
+In write, we check if the buffer address is kernel address, unallocated (We think that lookup_page checks if address is unallocated), or null, and in these cases it will exit. If open file is null, it exits. If creation is null, it will also exit. 
+

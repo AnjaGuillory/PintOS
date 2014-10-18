@@ -19,8 +19,10 @@ struct filing {
 
 /* An array of files */
 struct file *files[128];
+int global_status;
 
 static void syscall_handler (struct intr_frame *);
+bool create (const char *file, unsigned initial_size);
 
 void
 syscall_init (void) 
@@ -86,8 +88,9 @@ syscall_handler (struct intr_frame *f UNUSED)
     case 1:
       // EXIT
       status = *(myEsp + 1);
-      int exit_status = exit (status);
-      f->eax = exit_status;
+      exit (status);
+      //int exit_status = exit (status);
+      f->eax = global_status;
       break;
     case 2:
       // EXEC
@@ -99,17 +102,17 @@ syscall_handler (struct intr_frame *f UNUSED)
       // CREATE
       file = *(myEsp + 1);
       initial_size = *(myEsp + 2);
-      //creation = create(file, initial_size);
-      //f->eax = creation;
+      creation = create(file, initial_size);
+      f->eax = creation;
       break;
     case 5:
       // REMOVE
       break;
     case 6:
       // OPEN
+        file_sys = *(myEsp + 1);
       if(creation)
       {
-        file_sys = *(myEsp + 1);
         int file_des = open(file_sys);
         f->eax = file_des;
       } else {
@@ -141,7 +144,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
   } 
   
-  //printf ("system call!\n");
+  printf ("system call!\n");
   
   /* Get the system call number */
   /* Get any system call arguments */
@@ -150,14 +153,13 @@ syscall_handler (struct intr_frame *f UNUSED)
   //thread_exit ();
 }
 
-int exit (int status) {
+void exit (int status) {
   struct thread *cur = thread_current ();
   struct thread *parent = cur->parent;
   struct list children_list = parent->children;
 
   struct list_elem *e;
   if (!list_empty (&children_list)) {
-
     for (e = list_begin (&children_list); e != list_end (&children_list);
                e = list_next (e))
             {
@@ -169,10 +171,12 @@ int exit (int status) {
             }
 
   }
+  global_status = status;
   thread_exit();
 
+  printf("hello");
   // Instead of returning status, we can set wait -> status pointer to the status
-  return status;
+  //return status;
 }
 
 void halt(void)
@@ -191,6 +195,11 @@ int write (int fd, const void *buffer, unsigned size) {
   
   if (fd > 1){
     
+    uint32_t *activepd = active_pd ();
+    if (is_kernel_vaddr (buffer) || lookup_page (activepd, buffer, 0) == NULL || buffer == NULL) {
+      exit (1);
+    }
+
     /* Gets the file from the files array */
     struct file * fil = files[fd];
 
@@ -225,10 +234,13 @@ int write (int fd, const void *buffer, unsigned size) {
   return charWritten;
 }
 
-/*bool create (const char *file, unsigned initial_size) 
+bool create (const char *file, unsigned initial_size) 
 {
+  if(file == NULL)
+    exit(-1);
+    
   return filesys_create (file, initial_size);
-}*/
+}
 
 int open (const char *file)  {
   
