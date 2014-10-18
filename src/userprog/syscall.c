@@ -84,6 +84,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   switch (num) {
     case 0:
       // HALT
+      halt();
       break;
     case 1:
       // EXIT
