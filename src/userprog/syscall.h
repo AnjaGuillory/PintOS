@@ -8,5 +8,9 @@ void halt (void);
 int write (int fd, const void *buffer, unsigned size);
 //bool create (const char *file, unsigned initial_size);
 int open (const char *file);
+int filesize (int fd);
+unsigned tell (int fd);
+void seek (int fd, unsigned position);
+void close (int fd);
 
 #endif /* userprog/syscall.h */
