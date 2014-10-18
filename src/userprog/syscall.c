@@ -25,11 +25,10 @@ struct file
     bool deny_write;            /* Has file_deny_write() been called? */
   };
 
-/* An array of files */
-struct file *files[128];
-//int *position;
+struct file *files[128];        /* An array of files */
+int position;                   /* Keeps the position of the last element present in the array */
 
-int global_status;
+int global_status;              /* Global status for exit function */
 
 static void syscall_handler (struct intr_frame *);
 bool create (const char *file, unsigned initial_size);
@@ -93,7 +92,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   
   /* File descriptors cannot be 0 or 1 */
   fil->fd = 2;
-  //position = files[0];
+  position = 2;
 
   /* Creates a node with the first file descriptor open */
   list_push_back(&thread_current()->open_fd, &fil->elms);
@@ -223,17 +222,20 @@ int write (int fd, const void *buffer, unsigned size) {
   
   if (fd > 1){
     
+    /* Checks buffer for a bad pointer */
     uint32_t *activepd = active_pd ();
     if (is_kernel_vaddr (buffer) || lookup_page (activepd, buffer, 0) == NULL || buffer == NULL) {
       exit(-1);
     }
 
+    /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
       return -1;
 
     /* Gets the file from the files array */
     struct file * fil = files[fd];
 
+    /* Checks if the file at fd was valid */
     if(fil == NULL){
       return -1;
     }
@@ -271,15 +273,16 @@ int write (int fd, const void *buffer, unsigned size) {
 
 bool create (const char *file, unsigned initial_size) 
 {
-  /*uint32_t *activepd = active_pd();
+  uint32_t *activepd = active_pd();
   if(file == NULL || lookup_page(activepd, file, 0) == NULL || is_kernel_vaddr (file))
-    exit(-1);*/
+    exit(-1);
     
   return filesys_create (file, initial_size);
 }
 
 int open (const char *file)  {
   
+  // Needed to check for bad pointers (not working) 
   uint32_t *activepd = active_pd();
   if(file == NULL || lookup_page(activepd, file, 0) == NULL || is_kernel_vaddr (file))
     exit(-1);
@@ -289,6 +292,7 @@ int open (const char *file)  {
 
   struct thread *cur = thread_current();
 
+  /* Gets an open fd */
   struct filing *fil = list_entry(list_pop_front(&cur->open_fd), struct filing, elms);
   
   /* Allocate space for the index */
@@ -296,7 +300,7 @@ int open (const char *file)  {
 
   /* Checks if the file system was able to open the file 
       and if the number of files has exceeded 128 */
-  if(openFile == NULL || fil->fd > 127)
+  if(openFile == NULL || fil->fd > 127 || position > 127)
   {
     palloc_free_page(files[fil->fd]);
     return -1;
@@ -307,7 +311,11 @@ int open (const char *file)  {
 
   /* Sets the file descriptor to the open fd */
   int fd = fil->fd;
-  fil->fd++;
+
+  /* If extending past the current bound, increase bound */
+  if (fd == position)
+    fil->fd = ++position;
+  //fil->fd++;
 
   /* Adds the next index to the list of open fds for the thread */
   list_push_back(&(cur->open_fd), &fil->elms);
@@ -316,33 +324,46 @@ int open (const char *file)  {
 }
 
 int filesize (int fd) {
+  /* Returns the length of the file */
   return file_length (files[fd]);
 }
 
 unsigned tell (int fd) {
+  /* Returns the current position in the file */
   return file_tell (files[fd]);
 }
 
 void seek (int fd, unsigned position) {
+  /* Checks if the position to change to is within the file */
   if(position > (unsigned) file_length (files[fd]))
     exit(-1);
 
+  /* Sets the file position to position */
   file_seek (files[fd], position);
 }
 
 bool remove (const char *file) {
+  /* Returns true if able to remove the file.
+      Only prevents file from being opened again */
   return filesys_remove (file);
 }
 
 void close (int fd) {
+  /* Checks if fd is within the array */
+  if(fd < 2 || fd > 127)
+      exit(-1);
+  
+  /* Closes the file */
   file_close (files[fd]);
 
+  /* Opens spot in array */
   files[fd] = NULL;
 
   struct thread *cur = thread_current();
   struct filing *fil = palloc_get_page(0);
   fil->fd = fd;
 
+  /* Adds freed fd to list of open fds */
   list_push_back(&cur->open_fd, &fil->elms);
 
   palloc_free_page(fil);
