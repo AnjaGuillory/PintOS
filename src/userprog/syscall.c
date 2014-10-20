@@ -368,3 +368,40 @@ void close (int fd) {
 
   palloc_free_page(fil);
 }
+
+int read (int fd, void *buffer, unsigned size) 
+{
+  int charsRead = 0;
+  
+  if(fd == 0)
+  {
+    charsRead = input_getc();
+  }
+  else
+  {
+    /* Checks buffer for a bad pointer */
+    uint32_t *activepd = active_pd ();
+    if (is_kernel_vaddr (buffer) || lookup_page (activepd, buffer, 0) == NULL || buffer == NULL) {
+      exit(-1);
+    }
+
+    /* Checks if fd is within bounds of array */
+    if(fd < 2 || fd > 127)
+      return -1;
+
+    /* Gets the file from the files array */
+    struct file * fil = files[fd];
+
+    /* Checks if the file at fd was valid */
+    if(fil == NULL){
+      return -1;
+    }
+
+    /* Writes to the file and puts number of written characters */
+    charsRead = file_read (fil, (char *) buffer, size); 
+
+    //return charWritten;
+  }
+
+  return charsRead;
+}
