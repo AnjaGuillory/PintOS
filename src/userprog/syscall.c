@@ -10,6 +10,7 @@
 #include "lib/kernel/console.h"
 #include "threads/palloc.h"
 #include "filesys/file.h"
+#include "devices/input.h"
 
 /* Struct that holds the file descriptor */
 struct filing {
@@ -86,6 +87,9 @@ syscall_handler (struct intr_frame *f UNUSED)
   unsigned pos;
   const char *name;
   int fdc;
+  int fdr;
+  char *filesf;
+  int sizes;
 
   files[0] = palloc_get_page(0);
   struct filing *fil = palloc_get_page(0);
@@ -143,6 +147,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_READ:
       // READ
+      fdr = *(myEsp + 1);
+      filesf = *(myEsp + 2);
+      sizes =  *(myEsp + 3);
+      int reads = read (fdr, filesf, sizes);
+      f->eax = reads;
       break;
     case SYS_WRITE:
       // WRITE
@@ -399,6 +408,7 @@ int read (int fd, void *buffer, unsigned size)
 
     /* Writes to the file and puts number of written characters */
     charsRead = file_read (fil, (char *) buffer, size); 
+    //printf("chars %d\n", charsRead);
 
     //return charWritten;
   }
