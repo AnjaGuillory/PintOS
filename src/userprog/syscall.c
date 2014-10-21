@@ -11,6 +11,10 @@
 #include "threads/palloc.h"
 #include "filesys/file.h"
 #include "devices/input.h"
+#include "userprog/process.h"
+#include "threads/synch.h"
+
+typedef int pid_t;
 
 /* Struct that holds the file descriptor */
 struct filing {
@@ -31,15 +35,20 @@ int position;                   /* Keeps the position of the last element presen
 
 int global_status;              /* Global status for exit function */
 
+static struct lock Lock;
+
 static void syscall_handler (struct intr_frame *);
 bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int* getArgs(int* myEsp, int count);
+pid_t exec (const char *cmd_line);
+
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init (&Lock);
 }
 
 int* getArgs(int * myEsp, int count) {
@@ -102,6 +111,9 @@ syscall_handler (struct intr_frame *f UNUSED)
   int fdr; 
   char *filesf;
   int sizes; */
+  
+  int sizes;
+  char *cmd_line;
 
   int* args = palloc_get_page(0);
 
@@ -131,6 +143,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_EXEC:
       // EXEC
+      cmd_line = *(myEsp + 1);
+      pid_t execs = exec (cmd_line);
+      f->eax = execs;
       break;
     case SYS_WAIT:
       // WAIT
@@ -218,8 +233,8 @@ void exit (int status) {
   struct thread *parent = cur->parent;
   struct list children_list = parent->children;
 
-  struct list_elem *e;
-  if (!list_empty (&children_list)) {
+  /*struct list_elem *e;
+  if (!list_empty (&children_list) && cur->load_flag == 1) {
     for (e = list_begin (&children_list); e != list_end (&children_list);
                e = list_next (e))
             {
@@ -230,7 +245,7 @@ void exit (int status) {
               }
             }
 
-  }
+  }*/
   global_status = status;
   thread_exit();
 
@@ -274,7 +289,7 @@ int write (int fd, const void *buffer, unsigned size) {
     }
 
     /* Writes to the file and puts number of written characters */
-    charWritten = file_write (fil, (char *) buffer, size); 
+    charWritten = file_write (fil, (char *) buffer, size);
 
     //return charWritten;
   }
@@ -306,22 +321,33 @@ int write (int fd, const void *buffer, unsigned size) {
 
 bool create (const char *file, unsigned initial_size) 
 {
+
+  lock_acquire(&Lock);
+
   uint32_t *activepd = active_pd();
   if(file == NULL || lookup_page(activepd, file, 0) == NULL || is_kernel_vaddr (file))
     exit(-1);
-    
-  return filesys_create (file, initial_size);
+  
+  int flag = filesys_create (file, initial_size);
+
+  lock_release(&Lock);
+
+  return flag;
 }
 
 int open (const char *file)  {
-  
+
+  lock_acquire(&Lock);
+
   // Needed to check for bad pointers (not working) 
   uint32_t *activepd = active_pd();
   if(file == NULL || lookup_page(activepd, file, 0) == NULL || is_kernel_vaddr (file))
     exit(-1);
 
+
   /* Opens the file */
   struct file *openFile = filesys_open(file);
+
 
   struct thread *cur = thread_current();
 
@@ -352,18 +378,24 @@ int open (const char *file)  {
 
   /* Adds the next index to the list of open fds for the thread */
   list_push_back(&(cur->open_fd), &fil->elms);
+  
+  lock_release(&Lock);
 
   return fd;
 }
 
 int filesize (int fd) {
   /* Returns the length of the file */
-  return file_length (files[fd]);
+  int len = file_length (files[fd]);
+  
+  return len;
 }
 
 unsigned tell (int fd) {
   /* Returns the current position in the file */
-  return file_tell (files[fd]);
+  int pos = file_tell (files[fd]);
+
+  return pos;
 }
 
 void seek (int fd, unsigned position) {
@@ -372,13 +404,19 @@ void seek (int fd, unsigned position) {
     exit(-1);
 
   /* Sets the file position to position */
-  file_seek (files[fd], position);
+  return file_seek (files[fd], position);
 }
 
 bool remove (const char *file) {
+  lock_acquire(&Lock);
+
   /* Returns true if able to remove the file.
       Only prevents file from being opened again */
-  return filesys_remove (file);
+  int flag = filesys_remove (file);
+  
+  lock_release(&Lock);
+
+  return flag;
 }
 
 void close (int fd) {
@@ -438,4 +476,27 @@ int read (int fd, void *buffer, unsigned size)
   }
 
   return charsRead;
+}
+
+pid_t exec (const char *cmd_line) 
+{
+  struct thread *cur = thread_current ();
+  pid_t result;
+  result = process_execute((char *) cmd_line);
+
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->children); e != list_end (&cur->children);
+               e = list_next (e))
+            {
+              struct thread *j = list_entry (e, struct thread, child);
+              if (j->tid == result) {
+                if (j->load_flag == 1) {
+                  printf("i have loaded");
+                  return result;
+                }
+              }
+            }
+  printf("i am not loaded");
+  return -1;
 }

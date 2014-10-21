@@ -18,11 +18,14 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "kernel/list.h"
+#include "threads/synch.h"
 
 /*Driver: Anja*/
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, const char * command, void (**eip) (void), void **esp);
+
+struct lock Lock;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -55,6 +58,8 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  lock_init(&Lock);
+
   char *file_name = file_name_;
 
   char *str1, *token, *saveptr1;
@@ -103,6 +108,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  /*Access parent of child*/
+  struct thread *t = thread_current ();
   int x = 1;
   while(x == 1) {
     x = 1;
@@ -230,6 +237,8 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, const char *command, void (**eip) (void), void **esp) 
 {
+
+
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -245,8 +254,13 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
     goto done;
   process_activate ();
 
+  lock_acquire(&Lock);
+  
   /* Open executable file. */
   file = filesys_open (file_name);
+  
+  lock_release(&Lock);
+  
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -333,10 +347,13 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
+  t->load_flag = success;
 
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+
+
   return success;
 }
 
