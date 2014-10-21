@@ -34,11 +34,23 @@ int global_status;              /* Global status for exit function */
 static void syscall_handler (struct intr_frame *);
 bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
+int* getArgs(int* myEsp, int count);
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+}
+
+int* getArgs(int * myEsp, int count) {
+  int* args = palloc_get_page(3);
+
+  int i;
+  for (i = 0; i < count; i++){
+    args[i] = *(myEsp + i + 1);
+  }
+
+  return args;
 }
 
 static void
@@ -73,7 +85,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   //printf ("num: %d\n", num);
 
   // myEsp += 4;
-  int status;
+  /*int status;
   int fd;
   void *buffer;
   unsigned size;
@@ -87,12 +99,14 @@ syscall_handler (struct intr_frame *f UNUSED)
   unsigned pos;
   const char *name;
   int fdc;
-  int fdr;
+  int fdr; 
   char *filesf;
-  int sizes;
+  int sizes; */
 
-  files[0] = palloc_get_page(0);
-  struct filing *fil = palloc_get_page(0);
+  int* args = palloc_get_page(0);
+
+  files[0] = palloc_get_page (0);
+  struct filing *fil = palloc_get_page (0);
   
   /* File descriptors cannot be 0 or 1 */
   fil->fd = 2;
@@ -109,8 +123,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_EXIT:
       // EXIT
-      status = *(myEsp + 1);
-      exit (status);
+      // status = *(myEsp + 1);
+      args = getArgs (myEsp, 1);
+      exit (args[0]);
       //int exit_status = exit (status);
       f->eax = global_status;
       break;
@@ -122,61 +137,69 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_CREATE:
       // CREATE
-      file = *(myEsp + 1);
-      initial_size = *(myEsp + 2);
-      creation = create(file, initial_size);
-      f->eax = creation;
+      //file = *(myEsp + 1);
+      //initial_size = *(myEsp + 2);
+      args = getArgs (myEsp, 2);
+      f->eax = create (args[0], args[1]);
+      //f->eax = creation;
       break;
     case SYS_REMOVE:
       // REMOVE
-      name = *(myEsp + 1);
-      int val = filesys_remove (name);
-      f->eax = val;
+      //name = *(myEsp + 1);
+      args = getArgs (myEsp, 1);
+      f->eax = remove (args[0]);
+      //f->eax = val;
       break;
     case SYS_OPEN:
       // OPEN
-      file_sys = *(myEsp + 1);
-      int file_des = open(file_sys);
-      f->eax = file_des;
+      //file_sys = *(myEsp + 1);
+      args = getArgs (myEsp, 1);
+      f->eax = open (args[0]);
+      //f->eax = file_des;
       break;
     case SYS_FILESIZE:
       // FILESIZE
-      fds = *(myEsp + 1);
-      int file_s = filesize (fds);
-      f->eax = file_s;
+      //fds = *(myEsp + 1);
+      args = getArgs (myEsp, 1);
+      f->eax = filesize (args[0]);
+      //f->eax = file_s;
       break;
     case SYS_READ:
       // READ
-      fdr = *(myEsp + 1);
-      filesf = *(myEsp + 2);
-      sizes =  *(myEsp + 3);
-      int reads = read (fdr, filesf, sizes);
-      f->eax = reads;
+      //fdr = *(myEsp + 1);
+      //filesf = *(myEsp + 2);
+      //sizes =  *(myEsp + 3);
+      args = getArgs (myEsp, 3);
+      f->eax = read (args[0], args[1], args[2]);
+      // f->eax = reads;
       break;
     case SYS_WRITE:
       // WRITE
-      fd = *(myEsp + 1);
-      buffer = *(myEsp + 2);
-      size =  *(myEsp + 3);
-      int bytes = write (fd, buffer, size);
-      f->eax = bytes;
+      //fd = *(myEsp + 1);
+      //buffer = *(myEsp + 2);
+      //size =  *(myEsp + 3);
+      args = getArgs (myEsp, 3);
+      f->eax = write (args[0], args[1], args[2]);
       break;
     case SYS_SEEK:
       // SEEK
-      fdp = *(myEsp + 1);
-      pos = *(myEsp + 2);
-      seek (fdp, pos);
+      //fdp = *(myEsp + 1);
+      //pos = *(myEsp + 2);
+      args = getArgs (myEsp, 2);
+      seek (args[0], args[1]);
       break;
     case SYS_TELL:
       // TELL
-      fdy = *(myEsp + 1);
-      unsigned pos = tell (fdy);
-      f->eax = pos;
+      // fdy = *(myEsp + 1);
+      args = getArgs (myEsp, 1);
+      f->eax = tell (args[0]);
+      // f->eax = pos;
       break;
     case SYS_CLOSE:
       // CLOSE
-      fdc = *(myEsp + 1);
-      close (fdc);
+      //fdc = *(myEsp + 1);
+      args = getArgs (myEsp, 1);
+      close (args[0]);
       break;
   } 
   
@@ -187,6 +210,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Switch statement checks the number and calls the right function */
   /* Implement each function */
   //thread_exit ();
+  palloc_free_page(&args);
 }
 
 void exit (int status) {
