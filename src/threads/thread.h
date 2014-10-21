@@ -101,6 +101,10 @@ struct thread
     struct thread *parent;               /* Parent for current thread */
 
     struct list open_fd;                 /* list of file descriptors */
+
+    bool load_flag;                      /* Indicates whether thread loaded successfully */
+
+    struct semaphore complete;           /* Indicates whether thread completes execution*/
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
