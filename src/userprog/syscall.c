@@ -224,8 +224,9 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Get any system call arguments */
   /* Switch statement checks the number and calls the right function */
   /* Implement each function */
-  //thread_exit ();
+  
   palloc_free_page(&args);
+  //thread_exit ();
 }
 
 void exit (int status) {
@@ -233,7 +234,7 @@ void exit (int status) {
   struct thread *parent = cur->parent;
   struct list children_list = parent->children;
 
-  /*struct list_elem *e;
+  struct list_elem *e;
   if (!list_empty (&children_list) && cur->load_flag == 1) {
     for (e = list_begin (&children_list); e != list_end (&children_list);
                e = list_next (e))
@@ -245,7 +246,7 @@ void exit (int status) {
               }
             }
 
-  }*/
+  }
   global_status = status;
   thread_exit();
 
@@ -482,7 +483,10 @@ pid_t exec (const char *cmd_line)
 {
   struct thread *cur = thread_current ();
   pid_t result;
+  sema_down(&cur->complete);
   result = process_execute((char *) cmd_line);
+  if(result == -1)
+    return result;
 
   struct list_elem *e;
 
@@ -498,5 +502,6 @@ pid_t exec (const char *cmd_line)
               }
             }
   printf("i am not loaded");
+
   return -1;
 }

@@ -348,12 +348,10 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
 
   success = true;
   t->load_flag = success;
-
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
-
-
+  sema_up(&(t->parent)->complete);
   return success;
 }
 
