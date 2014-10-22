@@ -142,6 +142,23 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  struct thread *parent = cur->parent;
+  struct list children_list = parent->children;
+
+  struct list_elem *e;
+  if (!list_empty (&children_list)) {
+    for (e = list_begin (&children_list); e != list_end (&children_list);
+               e = list_next (e))
+            {
+              struct thread *j = list_entry (e, struct thread, child);
+              if (j->tid == cur->tid) {
+                list_remove (e);
+                break;
+              }
+            }
+
+  }
 }
 
 /* Sets up the CPU for running user code in the current
@@ -238,7 +255,7 @@ bool
 load (const char *file_name, const char *command, void (**eip) (void), void **esp) 
 {
 
-
+  printf("failing here");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;

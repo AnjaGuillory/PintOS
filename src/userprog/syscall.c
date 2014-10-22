@@ -52,7 +52,7 @@ syscall_init (void)
 }
 
 int* getArgs(int * myEsp, int count) {
-  int* args = palloc_get_page(3);
+  int* args = palloc_get_page(0);
 
   int i;
   for (i = 0; i < count; i++){
@@ -225,28 +225,13 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Switch statement checks the number and calls the right function */
   /* Implement each function */
   
-  palloc_free_page(&args);
+  palloc_free_page(args);
   //thread_exit ();
 }
 
 void exit (int status) {
-  struct thread *cur = thread_current ();
-  struct thread *parent = cur->parent;
-  struct list children_list = parent->children;
+  // struct thread *cur = thread_current ();
 
-  struct list_elem *e;
-  if (!list_empty (&children_list) && cur->load_flag == 1) {
-    for (e = list_begin (&children_list); e != list_end (&children_list);
-               e = list_next (e))
-            {
-              struct thread *j = list_entry (e, struct thread, child);
-              if (j->tid == cur->tid) {
-                list_remove (e);
-                break;
-              }
-            }
-
-  }
   global_status = status;
   thread_exit();
 
@@ -483,10 +468,17 @@ pid_t exec (const char *cmd_line)
 {
   struct thread *cur = thread_current ();
   pid_t result;
-  sema_down(&cur->complete);
+  if(cmd_line == NULL)
+    return -1;
+  
+  lock_acquire(&Lock);
   result = process_execute((char *) cmd_line);
-  if(result == -1)
-    return result;
+  lock_release(&Lock);
+  sema_down(&cur->complete);
+
+  /* If process execute didn't create a thread */
+  if (result == TID_ERROR)
+    return -1;
 
   struct list_elem *e;
 
@@ -499,9 +491,13 @@ pid_t exec (const char *cmd_line)
                   printf("i have loaded");
                   return result;
                 }
+                else {
+                    printf("i am not loaded");
+                    list_remove(e);
+                    return -1;
+                }
               }
             }
-  printf("i am not loaded");
 
   return -1;
 }
