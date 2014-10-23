@@ -106,6 +106,9 @@ struct thread
     bool load_flag;                      /* Indicates whether thread loaded successfully */
 
     struct semaphore complete;           /* Indicates whether thread completes execution*/
+    struct semaphore waiting;            /* Allows parent to wait for child */
+
+    int child_exit;                      /* Pointer to eax */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

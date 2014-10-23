@@ -106,15 +106,41 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
+  printf("in process_wait!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n");
+
   /*Access parent of child*/
-  struct thread *t = thread_current ();
-  int x = 1;
+  struct thread *cur = thread_current ();
+  printf("name of cur %s\n", cur->name);
+  
+  if(!list_empty(&cur->children)) {
+  
+  struct list_elem *e;
+    for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
+    {
+      struct thread *j = list_entry (e, struct thread, child);
+      if (j->tid == child_tid)
+      {
+        sema_down(&j->waiting);
+        //struct intr_frame *f =  cur->frame_pointer;
+        //printf("the value %d\n", cur->child_exit);
+        return cur->child_exit;
+        //printf("stack for child pointer %p, value %d\n", j->stack, *(j->stack));
+        //thread_yield();
+        //break;
+      }
+    }
+  }
+  
+  return -1;
+
+
+  /*int x = 1;
   while(x == 1) {
     x = 1;
   }
-  return -1;
+  return -1;*/
 
 }
 
@@ -255,7 +281,6 @@ bool
 load (const char *file_name, const char *command, void (**eip) (void), void **esp) 
 {
 
-  printf("failing here");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -365,10 +390,14 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
 
   success = true;
   t->load_flag = success;
+
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+  
   sema_up(&(t->parent)->complete);
+  thread_yield();
+  
   return success;
 }
 

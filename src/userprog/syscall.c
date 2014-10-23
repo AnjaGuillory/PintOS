@@ -14,8 +14,6 @@
 #include "userprog/process.h"
 #include "threads/synch.h"
 
-typedef int pid_t;
-
 /* Struct that holds the file descriptor */
 struct filing {
     int fd;
@@ -136,6 +134,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXIT:
       // EXIT
       // status = *(myEsp + 1);
+      //struct thread *cur = thread_current();
+      //thread_current()->frame_pointer = f;
       args = getArgs (myEsp, 1);
       exit (args[0]);
       //int exit_status = exit (status);
@@ -149,6 +149,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_WAIT:
       // WAIT
+      args = getArgs (myEsp, 1);
+      f->eax = wait (args[0]);
       break;
     case SYS_CREATE:
       // CREATE
@@ -230,14 +232,25 @@ syscall_handler (struct intr_frame *f UNUSED)
 }
 
 void exit (int status) {
-  // struct thread *cur = thread_current ();
+  struct thread *cur = thread_current ();
 
   global_status = status;
-  thread_exit();
+  /*printf("in exit the id of the one exiting %d\n", cur->tid);
+  printf("exit status %d\n", status);
+  printf("i'm upping %s\n", cur->name);*/
+  sema_up(&cur->waiting);
 
-  printf("hello");
-  // Instead of returning status, we can set wait -> status pointer to the status
-  //return status;
+  (cur->parent)->child_exit = status;
+  
+  printf("%s: exit(%d)\n", cur->name, status);
+  /*char * stat = &status;
+  //printf("\n");
+  putbuf(cur->name, strlen(cur->name));
+  putbuf(": exit(", 7);
+  putbuf(&stat, 2);
+  printf("\n");*/
+  
+  thread_exit();
 }
 
 void halt(void)
@@ -466,33 +479,32 @@ int read (int fd, void *buffer, unsigned size)
 
 pid_t exec (const char *cmd_line) 
 {
-  struct thread *cur = thread_current ();
-  pid_t result;
   if(cmd_line == NULL)
     return -1;
+  
+  struct thread *cur = thread_current ();
+  pid_t result;
   
   lock_acquire(&Lock);
   result = process_execute((char *) cmd_line);
   lock_release(&Lock);
-  sema_down(&cur->complete);
-
+  
   /* If process execute didn't create a thread */
   if (result == TID_ERROR)
     return -1;
 
+  sema_down(&cur->complete);
+
   struct list_elem *e;
 
-  for (e = list_begin (&cur->children); e != list_end (&cur->children);
-               e = list_next (e))
+  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
             {
               struct thread *j = list_entry (e, struct thread, child);
               if (j->tid == result) {
                 if (j->load_flag == 1) {
-                  printf("i have loaded");
                   return result;
                 }
                 else {
-                    printf("i am not loaded");
                     list_remove(e);
                     return -1;
                 }
@@ -500,4 +512,8 @@ pid_t exec (const char *cmd_line)
             }
 
   return -1;
+}
+
+int wait (pid_t pid) {
+  return process_wait(pid);
 }
