@@ -12,5 +12,6 @@ test_main (void)
   CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
   msg("%d\n", handle);
   write (handle, (char *) 0x10123420, 123);
+  msg("hello");
   fail ("should have exited with -1");
 }

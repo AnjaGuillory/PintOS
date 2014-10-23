@@ -40,7 +40,7 @@ bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int* getArgs(int* myEsp, int count);
 pid_t exec (const char *cmd_line);
-
+int checkPointer(void * buffer);
 
 void
 syscall_init (void) 
@@ -91,25 +91,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   uint32_t num = *myEsp;
   //printf ("num: %d\n", num);
 
-  // myEsp += 4;
-  /*int status;
-  int fd;
-  void *buffer;
-  unsigned size;
-  const char *file;
-  unsigned initial_size;
-  const char *file_sys;
-  bool creation = 0;
-  int fds;
-  int fdy;
-  int fdp;
-  unsigned pos;
-  const char *name;
-  int fdc;
-  int fdr; 
-  char *filesf;
-  int sizes; */
-  
   int sizes;
   char *cmd_line;
 
@@ -133,12 +114,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_EXIT:
       // EXIT
-      // status = *(myEsp + 1);
-      //struct thread *cur = thread_current();
-      //thread_current()->frame_pointer = f;
       args = getArgs (myEsp, 1);
       exit (args[0]);
-      //int exit_status = exit (status);
       f->eax = global_status;
       break;
     case SYS_EXEC:
@@ -158,63 +135,45 @@ syscall_handler (struct intr_frame *f UNUSED)
       //initial_size = *(myEsp + 2);
       args = getArgs (myEsp, 2);
       f->eax = create (args[0], args[1]);
-      //f->eax = creation;
       break;
     case SYS_REMOVE:
       // REMOVE
-      //name = *(myEsp + 1);
       args = getArgs (myEsp, 1);
       f->eax = remove (args[0]);
-      //f->eax = val;
       break;
     case SYS_OPEN:
       // OPEN
-      //file_sys = *(myEsp + 1);
       args = getArgs (myEsp, 1);
       f->eax = open (args[0]);
-      //f->eax = file_des;
       break;
     case SYS_FILESIZE:
       // FILESIZE
-      //fds = *(myEsp + 1);
       args = getArgs (myEsp, 1);
       f->eax = filesize (args[0]);
-      //f->eax = file_s;
       break;
     case SYS_READ:
       // READ
-      //fdr = *(myEsp + 1);
-      //filesf = *(myEsp + 2);
-      //sizes =  *(myEsp + 3);
       args = getArgs (myEsp, 3);
       f->eax = read (args[0], args[1], args[2]);
       // f->eax = reads;
       break;
     case SYS_WRITE:
       // WRITE
-      //fd = *(myEsp + 1);
-      //buffer = *(myEsp + 2);
-      //size =  *(myEsp + 3);
       args = getArgs (myEsp, 3);
       f->eax = write (args[0], args[1], args[2]);
       break;
     case SYS_SEEK:
       // SEEK
-      //fdp = *(myEsp + 1);
-      //pos = *(myEsp + 2);
       args = getArgs (myEsp, 2);
       seek (args[0], args[1]);
       break;
     case SYS_TELL:
       // TELL
-      // fdy = *(myEsp + 1);
       args = getArgs (myEsp, 1);
       f->eax = tell (args[0]);
-      // f->eax = pos;
       break;
     case SYS_CLOSE:
       // CLOSE
-      //fdc = *(myEsp + 1);
       args = getArgs (myEsp, 1);
       close (args[0]);
       break;
@@ -271,9 +230,12 @@ int write (int fd, const void *buffer, unsigned size) {
     
     /* Checks buffer for a bad pointer */
     uint32_t *activepd = active_pd ();
-    if (is_kernel_vaddr (buffer) || lookup_page (activepd, buffer, 0) == NULL || buffer == NULL) {
+    if (!is_kernel_vaddr (buffer)) {
+      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL || buffer == NULL)
       exit(-1);
     }
+    else if(is_kernel_vaddr (buffer))
+      exit(-1);
 
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
@@ -323,9 +285,13 @@ bool create (const char *file, unsigned initial_size)
 
   lock_acquire(&Lock);
 
-  uint32_t *activepd = active_pd();
-  if(file == NULL || lookup_page(activepd, file, 0) == NULL || is_kernel_vaddr (file))
-    exit(-1);
+  uint32_t *activepd = active_pd ();
+    if (!is_kernel_vaddr (file)) {
+      if(pagedir_get_page (activepd, file) == NULL|| lookup_page (activepd, file, 0) == NULL || file == NULL)
+      exit(-1);
+    }
+    else if(is_kernel_vaddr (file))
+      exit(-1);
   
   int flag = filesys_create (file, initial_size);
 
@@ -339,9 +305,12 @@ int open (const char *file)  {
   lock_acquire(&Lock);
 
   // Needed to check for bad pointers (not working) 
-  uint32_t *activepd = active_pd();
-  if(file == NULL || lookup_page(activepd, file, 0) == NULL || is_kernel_vaddr (file))
-    exit(-1);
+ if(checkPointer(file) == -1)
+ {
+  
+ }
+  printf("Check pointer failed")
+  exit(-1); 
 
 
   /* Opens the file */
@@ -451,9 +420,12 @@ int read (int fd, void *buffer, unsigned size)
   {
     /* Checks buffer for a bad pointer */
     uint32_t *activepd = active_pd ();
-    if (is_kernel_vaddr (buffer) || lookup_page (activepd, buffer, 0) == NULL || buffer == NULL) {
+    if (!is_kernel_vaddr (buffer)) {
+      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL || buffer == NULL)
       exit(-1);
     }
+    else if(is_kernel_vaddr (buffer))
+      exit(-1);
 
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
@@ -516,4 +488,18 @@ pid_t exec (const char *cmd_line)
 
 int wait (pid_t pid) {
   return process_wait(pid);
+}
+
+
+int checkPointer(void * buffer)
+{
+    uint32_t *activepd = active_pd ();
+    if (!is_kernel_vaddr (buffer)) {
+      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL || buffer == NULL)
+        return -1;
+    }
+    else if(is_kernel_vaddr (buffer))
+        return -1;
+    else
+      return 0;
 }
