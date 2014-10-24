@@ -487,7 +487,14 @@ pid_t exec (const char *cmd_line)
 }
 
 int wait (pid_t pid) {
-  return process_wait(pid);
+  struct thread *cur = thread_current();
+  int result = process_wait(pid);
+  cur->child_exit = result;
+  printf("RETURN STATUS: %d\n", result);
+  if (result == -1)
+    exit(-1);
+  else
+    return result;
 }
 
 
