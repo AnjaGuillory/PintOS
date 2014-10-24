@@ -93,7 +93,7 @@ user_vtop (const void *vaddr)
 {
   ASSERT (is_user_vaddr (vaddr));
 
-  return (uintptr_t) vaddr - (uintptr_t) PHYS_BASE;
+  return (uintptr_t) vaddr + (uintptr_t) PHYS_BASE;
 }
 
 

@@ -108,14 +108,14 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  printf("----- ENTERING PROCESS_WAIT() -------\n\n\n");
+  //printf("----- ENTERING PROCESS_WAIT() -------\n\n\n");
 
-  printf("tid: %p\n", child_tid);
+  //printf("tid: %p\n", child_tid);
 
   /*Access parent of child*/
   struct thread *cur = thread_current ();
   struct thread *temp_child;
-  printf("name of current thread: %s\n", cur->name);
+  //printf("name of current thread: %s\n", cur->name);
   
   if(!list_empty(&cur->children)) {
   
@@ -126,9 +126,10 @@ process_wait (tid_t child_tid)
       if (temp_child->tid == child_tid)
       {
 
-        printf("PID passed in is in list with tid: %p \n", temp_child);
+        ////printf("PID passed in is in list with tid: %p \n", temp_child);
 
         //sema_down(&temp_child->waiting);
+        //printf("name it breaks on %s\n", temp_child->name);
         break;
         // return cur->child_exit;
       }
@@ -136,31 +137,35 @@ process_wait (tid_t child_tid)
   }
 
   // List is empty, aka no children
+  //printf("name it has after loop on %s\n", temp_child->name);
+  
   if (list_empty(&cur->children))
     return -1;
 
     // Child doesn't belong to this parent, 
     // aka 'child' made it out of the loop and was never
     // equal to child_tid
-    printf("TEMP_CHILD %s\n", temp_child->name);
+    ////printf("TEMP_CHILD %s\n", temp_child->name);
     if (temp_child != NULL && temp_child->tid != child_tid){
-      printf(" This child is not a direct child of the parent. Womp. \n");
+      //printf(" This child is not a direct child of the parent. Womp. \n");
       return -1;
     }
       
 
     if (temp_child != NULL && temp_child->isWaited == 1)
     {
-      printf("This child is already being waited on... \n");
+      ////printf("This child is already being waited on... \n");
       return -1;
     }
 
     if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
       temp_child->isWaited = 1;
-      printf("SEMA DOWN \n");
+      ////printf("SEMA DOWN \n");
+      //printf("semaphore downing %s\n", temp_child->name);
       sema_down(&temp_child->waiting);
       struct thread *new = thread_current ();
-      printf("THREAD AT END %s \n", new->name);
+      //printf("THREAD AT END %s %d\n", new->name, cur->child_exit);
+      //ASSERT(cur->child_exit == 0);
       return cur->child_exit;
     }
 
@@ -172,8 +177,8 @@ process_wait (tid_t child_tid)
     x = 1;
   }
   return -1;*/
-
 }
+
 
 /* Free the current process's resources. */
 void
@@ -209,6 +214,7 @@ process_exit (void)
                e = list_next (e))
             {
               struct thread *j = list_entry (e, struct thread, child);
+              //printf("name of exiting thread %s\n", j->name);
               if (j->tid == cur->tid) {
                 list_remove (e);
                 break;
@@ -426,8 +432,10 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   
+  //printf("about to sema up\n");
   sema_up(&(t->parent)->complete);
   thread_yield();
+  //printf("im back from thread_yield() %s\n", t->name);
   
   return success;
 }

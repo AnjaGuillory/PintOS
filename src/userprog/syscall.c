@@ -1,6 +1,7 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -64,11 +65,19 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 
-  int * myEsp = f->esp;
+  printf("in syscall handler\n\n\n\n\n\n");
+  /*if(checkPointer(f->esp) == -1)
+    exit(-1);*/
   /* Check if pointer is a user virtual address 
    * NEED: add check for unmapped territory
    */
+   printf("%d\n", f->vec_no);
+   if(f->vec_no == 14) {
+    printf("in vecno == 14");
+    exit(-1);
+   }
 
+  int * myEsp = f->esp;
   uint32_t num = *myEsp;
   //printf ("num: %d\n", num);
 
@@ -87,6 +96,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Creates a node with the first file descriptor open */
   list_push_back(&thread_current()->open_fd, &fil->elms);
 
+
   /* SWITCHHHHHH */
   switch (num) {
     case SYS_HALT:
@@ -101,10 +111,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_EXEC:
       // EXEC
-      if(checkPointer(*(myEsp+1)) == -1)
+  /*    if(checkPointer(*(myEsp+1)) == -1)
       {
         exit(-1);
-      }
+      }*/
       cmd_line = *(myEsp + 1);
       pid_t execs = exec (cmd_line);
       f->eax = execs;
@@ -118,10 +128,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       // CREATE
       //file = *(myEsp + 1);
       //initial_size = *(myEsp + 2);
-      if(checkPointer(*(myEsp+2)) == -1)
+      /*if(checkPointer(*(myEsp+2)) == -1)
       {
         exit(-1);
-      }
+      }*/
       args = getArgs (myEsp, 2);
       f->eax = create (args[0], args[1]);
       break;
@@ -132,10 +142,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_OPEN:
       // OPEN
-      if(checkPointer(*(myEsp+1)) == -1)
+      /*if(checkPointer(*(myEsp+1)) == -1)
       {
         exit(-1);
-      }
+      }*/
       args = getArgs (myEsp, 1);
       f->eax = open (args[0]);
       break;
@@ -146,24 +156,24 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_READ:
       // READ
-      if(checkPointer(*(myEsp+3)) == -1)
+      /*if(checkPointer(*(myEsp+3)) == -1)
       {
         exit(-1);
-      }
+      }*/
       args = getArgs (myEsp, 3);
       f->eax = read (args[0], args[1], args[2]);
       // f->eax = reads;
       break;
     case SYS_WRITE:
       // WRITE
-      if(checkPointer(*(myEsp+2)) == -1)
+      /*if(checkPointer(*(myEsp+2)) == -1)
       {
         exit(-1);
       }
       if(checkPointer(*(myEsp+2+*(myEsp+3))) == -1)
       {
         exit(-1);
-      }
+      }*/
       args = getArgs (myEsp, 3);
       f->eax = write (args[0], args[1], args[2]);
       break;
@@ -199,20 +209,26 @@ void exit (int status) {
   struct thread *cur = thread_current ();
 
   global_status = status;
-  /*printf("in exit the id of the one exiting %d\n", cur->tid);
-  printf("exit status %d\n", status);*/
+  /*printf("in exit the id of the one exiting %d\n", cur->tid);*/
+  //printf("sema upping %s\n", cur->name);
   sema_up(&cur->waiting);
 
+
   (cur->parent)->child_exit = status;
+
+  char *str1, *token, *saveptr1;
+  str1 = palloc_get_page (0);
+  strlcpy (str1, cur->name, PGSIZE);
+  token = strtok_r(str1, " ", &saveptr1);
   
-  printf("%s: exit(%d)\n", cur->name, status);
+  printf("%s: exit(%d)\n", token, status);
+  palloc_free_page(str1);
   /*char * stat = &status;
   //printf("\n");
   putbuf(cur->name, strlen(cur->name));
   putbuf(": exit(", 7);
   putbuf(&stat, 2);
   printf("\n");*/
-  
   thread_exit();
 }
 
@@ -233,17 +249,8 @@ int write (int fd, const void *buffer, unsigned size) {
   if (fd > 1){
     
     /* Checks buffer for a bad pointer */
-    uint32_t *activepd = active_pd ();
-
-    if (!is_kernel_vaddr (buffer))
-    {
-      if(lookup_page (activepd, buffer, 0) == NULL || pagedir_get_page(activepd,buffer) == NULL || buffer == NULL)
-        exit(-1);    
-    }
-    else
-    {
-      return -1;
-    } 
+    if(checkPointer(buffer) == -1)
+      exit(-1);
 
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
@@ -293,12 +300,7 @@ bool create (const char *file, unsigned initial_size)
 
   lock_acquire(&Lock);
 
-  uint32_t *activepd = active_pd ();
-    if (!is_kernel_vaddr (file)) {
-      if(pagedir_get_page (activepd, file) == NULL|| lookup_page (activepd, file, 0) == NULL || file == NULL)
-      exit(-1);
-    }
-    else if(is_kernel_vaddr (file))
+  if(checkPointer(file) == -1)
       exit(-1);
   
   int flag = filesys_create (file, initial_size);
@@ -315,7 +317,8 @@ int open (const char *file)  {
   // Needed to check for bad pointers (not working) 
   struct thread *cur = thread_current();
 
-
+  if(checkPointer(file) == -1)
+    exit(-1);
 
   /* Opens the file */
   struct file *openFile = filesys_open(file);
@@ -333,6 +336,7 @@ int open (const char *file)  {
   if(openFile == NULL || fil->fd > 127 || position > 127)
   {
     palloc_free_page(files[fil->fd]);
+    lock_release(&Lock);
     return -1;
   }
 
@@ -357,6 +361,9 @@ int open (const char *file)  {
 
 int filesize (int fd) {
   /* Returns the length of the file */
+  if(files[fd] == NULL)
+    exit(-1);
+
   int len = file_length (files[fd]);
   
   return len;
@@ -394,6 +401,9 @@ void close (int fd) {
   /* Checks if fd is within the array */
   if(fd < 2 || fd > 127)
       exit(-1);
+
+  if(files[fd] == NULL)
+    exit(-1);
   
   /* Closes the file */
   file_close (files[fd]);
@@ -422,12 +432,7 @@ int read (int fd, void *buffer, unsigned size)
   else
   {
     /* Checks buffer for a bad pointer */
-    uint32_t *activepd = active_pd ();
-    if (!is_kernel_vaddr (buffer)) {
-      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL || buffer == NULL)
-      exit(-1);
-    }
-    else if(is_kernel_vaddr (buffer))
+    if(checkPointer(buffer) == -1)
       exit(-1);
 
     /* Checks if fd is within bounds of array */
@@ -456,6 +461,9 @@ pid_t exec (const char *cmd_line)
 {
   if(cmd_line == NULL)
     return -1;
+
+  if(checkPointer(cmd_line) == -1)
+    exit(-1);
   
   struct thread *cur = thread_current ();
   pid_t result;
@@ -465,8 +473,10 @@ pid_t exec (const char *cmd_line)
   lock_release(&Lock);
   
   /* If process execute didn't create a thread */
-  if (result == TID_ERROR)
+  if (result == TID_ERROR) {
+    //printf("my result is wrong\n");
     return -1;
+  }
 
   sema_down(&cur->complete);
 
@@ -480,38 +490,55 @@ pid_t exec (const char *cmd_line)
                   return result;
                 }
                 else {
-                    list_remove(e);
+                    //list_remove(e);
+                    //printf("my load flag was 0\n");
+                    thread_yield();
                     return -1;
                 }
               }
             }
-
+  //printf("i got to the end\n");
+  thread_yield();
   return -1;
 }
 
 int wait (pid_t pid) {
   struct thread *cur = thread_current();
+  //printf("thread going into wait %s\n", cur->name);
   int result = process_wait(pid);
-  cur->child_exit = result;
-  printf("RETURN STATUS: %d\n", result);
-  if (result == -1)
-    exit(-1);
-  else
-    return result;
+  //printf("thread has come out of wait %s with result %d\n", thread_current()->name, result);
+  //return result;
+  cur->parent->child_exit = result;
+  //printf("RETURN STATUS: %d\n", result);
+  /*if (result == -1)
+    return -1;*/
+  return result;
+  /*else
+    return result;*/
 }
 
 
 int checkPointer(const void * buffer)
 {
-    if(buffer == NULL)
-      return -1;
-    if (!is_user_vaddr (buffer+4)) 
-        return -1;
-    if(pagedir_get_page (thread_current()->pagedir, buffer) == NULL)
-    {
+    /*uint32_t *activepd = active_pd ();
+    if (!is_kernel_vaddr (buffer)) {
+      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL || buffer == NULL)
         return -1;
     }
+    else if(is_kernel_vaddr (buffer))
+      return -1;
+
+    return 0;*/
+
+    uint32_t *activepd = active_pd ();
+    if (buffer == NULL) {  
+      exit(-1);
+    }
     
+    else if(!is_kernel_vaddr(buffer)) {
+      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL)
+        exit(-1);
+    }
     
-      return 0;
+    return 0;
 }
