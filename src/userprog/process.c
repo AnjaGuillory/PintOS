@@ -108,33 +108,64 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+  printf("----- ENTERING PROCESS_WAIT() -------\n\n\n");
+
+  printf("tid: %p\n", child_tid);
 
   /*Access parent of child*/
   struct thread *cur = thread_current ();
+  struct thread *temp_child;
+  printf("name of current thread: %s\n", cur->name);
   
   if(!list_empty(&cur->children)) {
   
   struct list_elem *e;
     for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
     {
-      struct thread *j = list_entry (e, struct thread, child);
-      if (j->tid == child_tid)
+      temp_child = list_entry (e, struct thread, child);
+      if (temp_child->tid == child_tid)
       {
-        sema_down(&j->waiting);
-        //struct intr_frame *f =  cur->frame_pointer;
-        //printf("the value %d\n", cur->child_exit);
-        //printf("name of cur %s\n", cur->name);
 
-        return cur->child_exit;
-        //printf("stack for child pointer %p, value %d\n", j->stack, *(j->stack));
-        //thread_yield();
-        //break;
+        printf("PID passed in is in list with tid: %p \n", temp_child);
+
+        //sema_down(&temp_child->waiting);
+        break;
+        // return cur->child_exit;
       }
     }
   }
-  
-  return -1;
 
+  // List is empty, aka no children
+  if (list_empty(&cur->children))
+    return -1;
+
+    // Child doesn't belong to this parent, 
+    // aka 'child' made it out of the loop and was never
+    // equal to child_tid
+    printf("TEMP_CHILD %s\n", temp_child->name);
+    if (temp_child != NULL && temp_child->tid != child_tid){
+      printf(" This child is not a direct child of the parent. Womp. \n");
+      return -1;
+    }
+      
+
+    if (temp_child != NULL && temp_child->isWaited == 1)
+    {
+      printf("This child is already being waited on... \n");
+      return -1;
+    }
+
+    if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
+      temp_child->isWaited = 1;
+      printf("SEMA DOWN \n");
+      sema_down(&temp_child->waiting);
+      struct thread *new = thread_current ();
+      printf("THREAD AT END %s \n", new->name);
+      return cur->child_exit;
+    }
+
+    palloc_free_page(&temp_child->waiting);
+  return -1;
 
   /*int x = 1;
   while(x == 1) {
@@ -629,7 +660,11 @@ void the_stack(char *file_name, void **esp)
 
   /* Set esp back */
   *esp = myEsp;
+<<<<<<< HEAD
  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+=======
+  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+>>>>>>> ccfb2ea4fc93bfe4ef3c2c300bddde354449aa2b
 
   /* Free pages */
   palloc_free_page(argv);

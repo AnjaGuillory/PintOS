@@ -314,6 +314,14 @@ int open (const char *file)  {
 
   // Needed to check for bad pointers (not working) 
   struct thread *cur = thread_current();
+ /*if(checkPointer(file) == -1)
+ {
+  
+ }
+  printf("Check pointer failed")
+  exit(-1); */
+
+
   /* Opens the file */
   struct file *openFile = filesys_open(file);
 
@@ -488,7 +496,13 @@ pid_t exec (const char *cmd_line)
 
 int wait (pid_t pid) {
   struct thread *cur = thread_current();
-  return process_wait(pid);
+  int result = process_wait(pid);
+  cur->child_exit = result;
+  printf("RETURN STATUS: %d\n", result);
+  if (result == -1)
+    exit(-1);
+  else
+    return result;
 }
 
 

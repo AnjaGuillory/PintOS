@@ -109,6 +109,7 @@ struct thread
     struct semaphore waiting;            /* Allows parent to wait for child */
 
     int child_exit;                      /* Pointer to eax */
+    bool isWaited;                       /* Flag that indicates if the thread is being waited on by the parent */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
