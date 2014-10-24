@@ -18,6 +18,7 @@
 /* Struct that holds the file descriptor */
 struct filing {
     int fd;
+    bool inUse;
     struct list_elem elms;
 };
 
@@ -65,15 +66,15 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 
-  printf("in syscall handler\n\n\n\n\n\n");
+  // printf("in syscall handler\n\n\n\n\n\n");
   /*if(checkPointer(f->esp) == -1)
     exit(-1);*/
   /* Check if pointer is a user virtual address 
    * NEED: add check for unmapped territory
    */
-   printf("%d\n", f->vec_no);
+   //printf("%d\n", f->vec_no);
    if(f->vec_no == 14) {
-    printf("in vecno == 14");
+    //printf("in vecno == 14");
     exit(-1);
    }
 
@@ -209,8 +210,6 @@ void exit (int status) {
   struct thread *cur = thread_current ();
 
   global_status = status;
-  /*printf("in exit the id of the one exiting %d\n", cur->tid);*/
-  //printf("sema upping %s\n", cur->name);
   sema_up(&cur->waiting);
 
 
@@ -223,12 +222,7 @@ void exit (int status) {
   
   printf("%s: exit(%d)\n", token, status);
   palloc_free_page(str1);
-  /*char * stat = &status;
-  //printf("\n");
-  putbuf(cur->name, strlen(cur->name));
-  putbuf(": exit(", 7);
-  putbuf(&stat, 2);
-  printf("\n");*/
+
   thread_exit();
 }
 
@@ -252,9 +246,14 @@ int write (int fd, const void *buffer, unsigned size) {
     if(checkPointer(buffer) == -1)
       exit(-1);
 
+    struct filing *fileD = list_entry(list_front(&cur->open_fd), struct filing, elms);
+
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
       return -1;
+
+    if(fileD->inUse == 1)
+      return 0;
 
     /* Gets the file from the files array */
     struct file * fil = files[fd];
@@ -282,7 +281,6 @@ int write (int fd, const void *buffer, unsigned size) {
       putbuf((char *)buffer + charWritten, 300);
       charWritten += 300;
       size -= 300;
-      console_print_stats();
       }
 
       /* calls putbuf on the rest of the buffer */
@@ -292,6 +290,7 @@ int write (int fd, const void *buffer, unsigned size) {
 
   }
 
+  printf("Size of buffer: %d\n", size);
   return charWritten;
 }
 
@@ -435,9 +434,14 @@ int read (int fd, void *buffer, unsigned size)
     if(checkPointer(buffer) == -1)
       exit(-1);
 
+    struct filing *fileD = list_entry(list_front(&cur->open_fd), struct filing, elms);
+
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
       return -1;
+
+    if(fileD->inUse == 1)
+      return 0;
 
     /* Gets the file from the files array */
     struct file * fil = files[fd];
