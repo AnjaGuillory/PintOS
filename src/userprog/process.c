@@ -108,11 +108,9 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  printf("in process_wait!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n");
 
   /*Access parent of child*/
   struct thread *cur = thread_current ();
-  printf("name of cur %s\n", cur->name);
   
   if(!list_empty(&cur->children)) {
   
@@ -125,6 +123,8 @@ process_wait (tid_t child_tid)
         sema_down(&j->waiting);
         //struct intr_frame *f =  cur->frame_pointer;
         //printf("the value %d\n", cur->child_exit);
+        //printf("name of cur %s\n", cur->name);
+
         return cur->child_exit;
         //printf("stack for child pointer %p, value %d\n", j->stack, *(j->stack));
         //thread_yield();
@@ -629,7 +629,7 @@ void the_stack(char *file_name, void **esp)
 
   /* Set esp back */
   *esp = myEsp;
-  hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+ // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
   /* Free pages */
   palloc_free_page(argv);

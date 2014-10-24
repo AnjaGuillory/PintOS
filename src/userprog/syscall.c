@@ -40,7 +40,7 @@ bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int* getArgs(int* myEsp, int count);
 pid_t exec (const char *cmd_line);
-int checkPointer(void * buffer);
+int checkPointer(const void * buffer);
 
 void
 syscall_init (void) 
@@ -68,25 +68,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Check if pointer is a user virtual address 
    * NEED: add check for unmapped territory
    */
-
-  uint32_t *activepd = active_pd ();
-  if (is_user_vaddr (f->esp)){
-    if (lookup_page (activepd, f->esp, 0) == NULL){
-      /* terminate the process and free its resources */
-      // pagedir_destroy(activepd);
-      thread_exit ();
-    }
-  }
-
-  /* Check if pointer is a kernel virtual address (BAD) */
-  else if (is_kernel_vaddr (f->esp)){
-    /* terminate the process and free its resources 
-    * don't need to call pagedir_destroy because it is called by process_exit()
-    * which is called by thread_exit()
-    */
-    // pagedir_destroy(activepd); 
-    thread_exit();
-  }
 
   uint32_t num = *myEsp;
   //printf ("num: %d\n", num);
@@ -120,6 +101,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_EXEC:
       // EXEC
+      if(checkPointer(*(myEsp+1)) == -1)
+      {
+        exit(-1);
+      }
       cmd_line = *(myEsp + 1);
       pid_t execs = exec (cmd_line);
       f->eax = execs;
@@ -133,6 +118,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       // CREATE
       //file = *(myEsp + 1);
       //initial_size = *(myEsp + 2);
+      if(checkPointer(*(myEsp+2)) == -1)
+      {
+        exit(-1);
+      }
       args = getArgs (myEsp, 2);
       f->eax = create (args[0], args[1]);
       break;
@@ -143,6 +132,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_OPEN:
       // OPEN
+      if(checkPointer(*(myEsp+1)) == -1)
+      {
+        exit(-1);
+      }
       args = getArgs (myEsp, 1);
       f->eax = open (args[0]);
       break;
@@ -153,12 +146,24 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_READ:
       // READ
+      if(checkPointer(*(myEsp+3)) == -1)
+      {
+        exit(-1);
+      }
       args = getArgs (myEsp, 3);
       f->eax = read (args[0], args[1], args[2]);
       // f->eax = reads;
       break;
     case SYS_WRITE:
       // WRITE
+      if(checkPointer(*(myEsp+2)) == -1)
+      {
+        exit(-1);
+      }
+      if(checkPointer(*(myEsp+2+*(myEsp+3))) == -1)
+      {
+        exit(-1);
+      }
       args = getArgs (myEsp, 3);
       f->eax = write (args[0], args[1], args[2]);
       break;
@@ -195,8 +200,7 @@ void exit (int status) {
 
   global_status = status;
   /*printf("in exit the id of the one exiting %d\n", cur->tid);
-  printf("exit status %d\n", status);
-  printf("i'm upping %s\n", cur->name);*/
+  printf("exit status %d\n", status);*/
   sema_up(&cur->waiting);
 
   (cur->parent)->child_exit = status;
@@ -230,12 +234,16 @@ int write (int fd, const void *buffer, unsigned size) {
     
     /* Checks buffer for a bad pointer */
     uint32_t *activepd = active_pd ();
-    if (!is_kernel_vaddr (buffer)) {
-      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL || buffer == NULL)
-      exit(-1);
+
+    if (!is_kernel_vaddr (buffer))
+    {
+      if(lookup_page (activepd, buffer, 0) == NULL || pagedir_get_page(activepd,buffer) == NULL || buffer == NULL)
+        exit(-1);    
     }
-    else if(is_kernel_vaddr (buffer))
-      exit(-1);
+    else
+    {
+      return -1;
+    } 
 
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
@@ -305,19 +313,11 @@ int open (const char *file)  {
   lock_acquire(&Lock);
 
   // Needed to check for bad pointers (not working) 
- if(checkPointer(file) == -1)
- {
-  
- }
-  printf("Check pointer failed")
-  exit(-1); 
-
-
+  struct thread *cur = thread_current();
   /* Opens the file */
   struct file *openFile = filesys_open(file);
 
 
-  struct thread *cur = thread_current();
 
   /* Gets an open fd */
   struct filing *fil = list_entry(list_pop_front(&cur->open_fd), struct filing, elms);
@@ -487,19 +487,22 @@ pid_t exec (const char *cmd_line)
 }
 
 int wait (pid_t pid) {
+  struct thread *cur = thread_current();
   return process_wait(pid);
 }
 
 
-int checkPointer(void * buffer)
+int checkPointer(const void * buffer)
 {
-    uint32_t *activepd = active_pd ();
-    if (!is_kernel_vaddr (buffer)) {
-      if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL || buffer == NULL)
+    if(buffer == NULL)
+      return -1;
+    if (!is_user_vaddr (buffer+4)) 
+        return -1;
+    if(pagedir_get_page (thread_current()->pagedir, buffer) == NULL)
+    {
         return -1;
     }
-    else if(is_kernel_vaddr (buffer))
-        return -1;
-    else
+    
+    
       return 0;
 }
