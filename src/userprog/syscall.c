@@ -314,12 +314,7 @@ int open (const char *file)  {
 
   // Needed to check for bad pointers (not working) 
   struct thread *cur = thread_current();
- /*if(checkPointer(file) == -1)
- {
-  
- }
-  printf("Check pointer failed")
-  exit(-1); */
+
 
 
   /* Opens the file */

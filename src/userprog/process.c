@@ -660,11 +660,8 @@ void the_stack(char *file_name, void **esp)
 
   /* Set esp back */
   *esp = myEsp;
-<<<<<<< HEAD
  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
-=======
   // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
->>>>>>> ccfb2ea4fc93bfe4ef3c2c300bddde354449aa2b
 
   /* Free pages */
   palloc_free_page(argv);
