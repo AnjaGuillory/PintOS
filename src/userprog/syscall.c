@@ -246,17 +246,15 @@ int write (int fd, const void *buffer, unsigned size) {
     if(checkPointer(buffer) == -1)
       exit(-1);
 
-    struct filing *fileD = list_entry(list_front(&cur->open_fd), struct filing, elms);
-
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
       return -1;
 
-    if(fileD->inUse == 1)
-      return 0;
 
     /* Gets the file from the files array */
     struct file * fil = files[fd];
+    if (fil->deny_write == 1)
+      return 0;
 
     /* Checks if the file at fd was valid */
     if(fil == NULL){
@@ -289,8 +287,7 @@ int write (int fd, const void *buffer, unsigned size) {
    }
 
   }
-
-  printf("Size of buffer: %d\n", size);
+  
   return charWritten;
 }
 
@@ -320,8 +317,9 @@ int open (const char *file)  {
     exit(-1);
 
   /* Opens the file */
-  struct file *openFile = filesys_open(file);
 
+  struct file *openFile = filesys_open(file);
+  file_deny_write(openFile);
 
 
   /* Gets an open fd */
@@ -406,6 +404,7 @@ void close (int fd) {
   
   /* Closes the file */
   file_close (files[fd]);
+  file_allow_write(files[fd]);
 
   /* Opens spot in array */
   files[fd] = NULL;
@@ -434,14 +433,9 @@ int read (int fd, void *buffer, unsigned size)
     if(checkPointer(buffer) == -1)
       exit(-1);
 
-    struct filing *fileD = list_entry(list_front(&cur->open_fd), struct filing, elms);
-
     /* Checks if fd is within bounds of array */
     if(fd < 2 || fd > 127)
       return -1;
-
-    if(fileD->inUse == 1)
-      return 0;
 
     /* Gets the file from the files array */
     struct file * fil = files[fd];
