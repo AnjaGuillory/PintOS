@@ -305,12 +305,12 @@ int open (const char *file)  {
   lock_acquire(&Lock);
 
   // Needed to check for bad pointers (not working) 
- if(checkPointer(file) == -1)
+ /*if(checkPointer(file) == -1)
  {
   
  }
   printf("Check pointer failed")
-  exit(-1); 
+  exit(-1); */
 
 
   /* Opens the file */

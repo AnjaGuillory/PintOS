@@ -478,6 +478,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&(t->children)); /*Initialize list of children*/
   t->load_flag = 0;
+  t->isWaited = 0;
   sema_init(&t->complete, 0);
   sema_init(&t->waiting, 0);
   list_init(&(t->open_fd));
