@@ -101,8 +101,6 @@ struct thread
 
     struct thread *parent;               /* Parent for current thread */
 
-    struct list open_fd;                 /* list of file descriptors */
-
     bool load_flag;                      /* Indicates whether thread loaded successfully */
 
     struct semaphore complete;           /* Indicates whether thread completes execution*/
@@ -110,7 +108,8 @@ struct thread
 
     int child_exit;                      /* Pointer to eax */
     bool isWaited;                       /* Flag that indicates if the thread is being waited on by the parent */
-    bool usingFile;                      /* Flag that inidicates if thread is using file */
+    struct file *self;                  /* the thread's executable */
+    struct file *files[128];            /* An array of the thread's files */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

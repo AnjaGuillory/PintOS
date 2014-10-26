@@ -86,6 +86,12 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
+  else {
+    struct thread *t = thread_current ();
+    t->self = filesys_open(token);
+    file_deny_write(t->self);
+  }
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -108,7 +114,6 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  //printf("----- ENTERING PROCESS_WAIT() -------\n\n\n");
 
   //printf("tid: %p\n", child_tid);
 
@@ -139,8 +144,12 @@ process_wait (tid_t child_tid)
   // List is empty, aka no children
   //printf("name it has after loop on %s\n", temp_child->name);
   
-  if (list_empty(&cur->children))
+  //lock_acquire(&Lock);
+
+  if (list_empty(&cur->children)) {
+    //lock_release(&Lock);
     return -1;
+  }
 
     // Child doesn't belong to this parent, 
     // aka 'child' made it out of the loop and was never
@@ -148,35 +157,25 @@ process_wait (tid_t child_tid)
     ////printf("TEMP_CHILD %s\n", temp_child->name);
     if (temp_child != NULL && temp_child->tid != child_tid){
       //printf(" This child is not a direct child of the parent. Womp. \n");
+      //lock_release(&Lock);
       return -1;
     }
-      
-
+    
     if (temp_child != NULL && temp_child->isWaited == 1)
     {
       ////printf("This child is already being waited on... \n");
+      //lock_release(&Lock);
       return -1;
     }
 
     if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
       temp_child->isWaited = 1;
-      ////printf("SEMA DOWN \n");
-      //printf("semaphore downing %s\n", temp_child->name);
       sema_down(&temp_child->waiting);
-      struct thread *new = thread_current ();
-      //printf("THREAD AT END %s %d\n", new->name, cur->child_exit);
-      //ASSERT(cur->child_exit == 0);
       return cur->child_exit;
     }
 
-    palloc_free_page(&temp_child->waiting);
+  palloc_free_page(&temp_child->waiting);
   return -1;
-
-  /*int x = 1;
-  while(x == 1) {
-    x = 1;
-  }
-  return -1;*/
 }
 
 
@@ -187,6 +186,15 @@ process_exit (void)
 
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  
+  file_close(cur->self);
+  cur->self = NULL;
+
+  sema_up(&cur->waiting); //might need to move back to syscall_exit 
+
+  int indx = 0;
+  while (indx < 128)
+    palloc_free_page(cur->files[indx]);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -216,7 +224,9 @@ process_exit (void)
               struct thread *j = list_entry (e, struct thread, child);
               //printf("name of exiting thread %s\n", j->name);
               if (j->tid == cur->tid) {
+                lock_acquire(&Lock);
                 list_remove (e);
+                lock_release(&Lock);
                 break;
               }
             }
