@@ -29,8 +29,7 @@ struct file
     bool deny_write;            /* Has file_deny_write() been called? */
   };
 
-static struct list open_fd;            /* list of open file descriptors */
-int position;                   /* Keeps the position of the last element present in the array */
+
 
 int global_status;              /* Global status for exit function */
 
@@ -48,7 +47,6 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init (&Lock);
-  list_init (&open_fd);
   
 }
 
@@ -58,7 +56,8 @@ int* getArgs(int * myEsp, int count) {
 
   int i;
   for (i = 0; i < count; i++){
-    //printf("in while\n");
+    if (!is_user_vaddr(myEsp + i + 1))
+      exit(-1);
     args[i] = *(myEsp + i + 1);
     //printf("%d\n", args[0]);
   }
@@ -95,8 +94,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   uint32_t num = *myEsp;
 
-  if (!(is_user_vaddr (myEsp + 1) && is_user_vaddr (myEsp + 2) && is_user_vaddr (myEsp + 3)))
-    exit(-1);
+  /*if (!(is_user_vaddr (myEsp + 1) && is_user_vaddr (myEsp + 2) && is_user_vaddr (myEsp + 3)))
+    exit(-1); */
 
   if (num < SYS_HALT || num > SYS_CLOSE)
     exit(-1);
@@ -111,16 +110,14 @@ syscall_handler (struct intr_frame *f UNUSED)
   ////printf("allocated files[0] and filesize\n");  
   
   //printf("checking fd\n");
-  if(list_empty(&open_fd)) {
+  if(list_empty(&cur->open_fd)) {
     //printf("adding to fd\n");
-  
-    cur->files[2] = palloc_get_page (0);
-    struct filing *fil = palloc_get_page (0);
+      struct filing *fil = palloc_get_page (0);
 
     fil->fd = 2;
     //files[0] = fil;
-    position = 2;
-    list_push_back(&open_fd, &fil->elms);
+    cur->position = 2;
+    list_push_back(&cur->open_fd, &fil->elms);
     /* Creates a node with the first file descriptor open */
     
   }
@@ -372,15 +369,16 @@ int open (const char *file)  {
   
   lock_release(&Lock);
 
+
   /* Gets an open fd */
-  struct filing *fil = list_entry(list_pop_front(&open_fd), struct filing, elms);
+  struct filing *fil = list_entry(list_pop_front(&cur->open_fd), struct filing, elms);
   
   /* Allocate space for the index */
   cur->files[fil->fd] = palloc_get_page(0);
 
   /* Checks if the file system was able to open the file 
       and if the number of files has exceeded 128 */
-  if(openFile == NULL || ((fil->fd > 127 || position > 127) && list_empty(&open_fd)) || fil->fd < 2 || position < 2)
+  if(openFile == NULL || ((fil->fd > 127 || cur->position > 127) && list_empty(&cur->open_fd)) || fil->fd < 2 || cur->position < 2)
   {
     palloc_free_page(cur->files[fil->fd]);
     return -1;
@@ -393,15 +391,15 @@ int open (const char *file)  {
   int fd = fil->fd;
 
   /* If extending past the current bound, increase bound */
-  if (fd == position) {
-    position += 1;
-    fil->fd = position;
+  if (fd == cur->position) {
+    cur->position += 1;
+    fil->fd = cur->position;
     
   }
   //fil->fd++;
 
   /* Adds the next index to the list of open fds for the thread */
-  list_push_back(&open_fd, &fil->elms);
+  list_push_back(&cur->open_fd, &fil->elms);
   
   //lock_release(&Lock);
   //printf("returning open\n");
@@ -475,7 +473,7 @@ void close (int fd) {
   fil->fd = fd;
 
   /* Adds freed fd to list of open fds */
-  list_push_back(&open_fd, &fil->elms);
+  list_push_back(&cur->open_fd, &fil->elms);
 
   palloc_free_page(fil);
 }
@@ -498,7 +496,6 @@ int read (int fd, void *buffer, unsigned size)
   else
   {
     //printf("int fd %d, size %d\n", fd, size);
-
 
     // cur = thread_current();
     // fileD = list_entry(list_front(&cur->open_fd), struct filing, elms);
