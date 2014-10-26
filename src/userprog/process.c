@@ -114,7 +114,6 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  printf("----- ENTERING PROCESS_WAIT() -------\n\n\n");
 
   //printf("tid: %p\n", child_tid);
 
@@ -172,25 +171,11 @@ process_wait (tid_t child_tid)
     if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
       temp_child->isWaited = 1;
       sema_down(&temp_child->waiting);
-<<<<<<< HEAD
-=======
-      //struct thread *new = thread_current ();
-      //printf("THREAD AT END %s %d\n", new->name, cur->child_exit);
-      //ASSERT(cur->child_exit == 0);
-      //lock_release(&Lock);
->>>>>>> cd5894f72af7552fa4b0aa858fcdc2b5adbb2ff2
       return cur->child_exit;
     }
 
-    palloc_free_page(&temp_child->waiting);
-    //lock_release(&Lock);
+  palloc_free_page(&temp_child->waiting);
   return -1;
-
-  /*int x = 1;
-  while(x == 1) {
-    x = 1;
-  }
-  return -1;*/
 }
 
 

@@ -71,6 +71,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
 
   int * myEsp = f->esp;
+  struct thread *cur = thread_current ();
   ////printf("in syscall handler\n");
   if(checkPointer(myEsp) == -1)
     exit(-1);
@@ -88,8 +89,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   if ((void *) f->esp >= PHYS_BASE)
     exit(-1);
-
-  int * myEsp = f->esp;
 
   if (!is_user_vaddr (myEsp))
     exit(-1);
@@ -115,7 +114,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   if(list_empty(&open_fd)) {
     //printf("adding to fd\n");
   
-    files[2] = palloc_get_page (0);
+    cur->files[2] = palloc_get_page (0);
     struct filing *fil = palloc_get_page (0);
 
     fil->fd = 2;
@@ -253,7 +252,7 @@ void exit (int status) {
   strlcpy (str1, cur->name, PGSIZE);
   token = strtok_r(str1, " ", &saveptr1);
   
-  printf("%s: exit(%d)\n", cur->name, status);
+  printf("%s: exit(%d)\n", token, status);
   palloc_free_page(str1);
   /*char * stat = &status;
   ////printf("\n");
@@ -470,7 +469,7 @@ void close (int fd) {
 
   /* Opens spot in array */
   cur->files[fd] = NULL;
-  palloc_free_page(files[fd]);
+  palloc_free_page(cur->files[fd]);
 
   struct filing *fil = palloc_get_page(0);
   fil->fd = fd;
@@ -531,10 +530,6 @@ int read (int fd, void *buffer, unsigned size)
 
 pid_t exec (const char *cmd_line) 
 {
-  printf("in exec\n");
-  // if(cmd_line == NULL)
-  //   return -1;
-
   if(checkPointer(cmd_line) == -1)
     return -1;
   
