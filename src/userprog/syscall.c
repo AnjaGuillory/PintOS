@@ -69,7 +69,6 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 
-  //printf("in syscall handler\n\n");
   //if(checkPointer(f->esp) == -1)
     //exit(-1);
   /* Check if pointer is a user virtual address 
@@ -79,7 +78,7 @@ syscall_handler (struct intr_frame *f UNUSED)
    if(f->vec_no == 14) {
     //printf("in vecno == 14");
     exit(-1);
-   }
+  }
 
   int * myEsp = f->esp;
   
@@ -100,9 +99,10 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   /* Creates a node with the first file descriptor open */
   list_push_back(&thread_current()->open_fd, &fil->elms);
-
+ 
   /* SWITCHHHHHH */
   switch (num) {
+  
     case SYS_HALT:
       // HALT
       halt();
@@ -169,7 +169,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_READ:
       // READ
-     // if(checkPointer(*(myEsp+3)) == -1)
+      //if(checkPointer(*(myEsp+3)) == -1)
       //{
         //exit(-1);
       //}
@@ -207,7 +207,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
   } 
   
-  //printf ("system call!\n");
+ 
   
   /* Get the system call number */
   /* Get any system call arguments */
@@ -443,11 +443,14 @@ void close (int fd) {
 
 int read (int fd, void *buffer, unsigned size) 
 {
+ 
   int charsRead = 0;
   
   /* Checks buffer for a bad pointer */
   if(checkPointer(buffer) == -1)
+  {
   	exit(-1);
+  }
   if(fd == 0)
   {
     charsRead = input_getc();
@@ -461,7 +464,7 @@ int read (int fd, void *buffer, unsigned size)
 
     /* Gets the file from the files array */
     struct file * fil = files[fd];
-
+   
     /* Checks if the file at fd was valid */
     if(fil == NULL){
       return -1;
