@@ -86,6 +86,12 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
+  else {
+    struct thread *t = thread_current ();
+    t->self = filesys_open(token);
+    file_deny_write(t->self);
+  }
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -160,12 +166,7 @@ process_wait (tid_t child_tid)
 
     if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
       temp_child->isWaited = 1;
-      ////printf("SEMA DOWN \n");
-      //printf("semaphore downing %s\n", temp_child->name);
       sema_down(&temp_child->waiting);
-      struct thread *new = thread_current ();
-      //printf("THREAD AT END %s %d\n", new->name, cur->child_exit);
-      //ASSERT(cur->child_exit == 0);
       return cur->child_exit;
     }
 
@@ -187,6 +188,15 @@ process_exit (void)
 
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  
+  file_close(cur->self);
+  cur->self = NULL;
+
+  sema_up(&cur->waiting); //might need to move back to syscall_exit 
+
+  int indx = 0;
+  while (indx < 128)
+    palloc_free_page(cur->files[indx]);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

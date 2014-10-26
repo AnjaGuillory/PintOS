@@ -110,7 +110,8 @@ struct thread
 
     int child_exit;                      /* Pointer to eax */
     bool isWaited;                       /* Flag that indicates if the thread is being waited on by the parent */
-    bool usingFile;                      /* Flag that inidicates if thread is using file */
+    struct file *self;                  /* the thread's executable */
+    struct file *files[128];            /* An array of the thread's files */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
