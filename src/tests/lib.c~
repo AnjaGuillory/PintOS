@@ -123,29 +123,22 @@ check_file_handle (int fd,
   /* Read the file block-by-block, comparing data as we go. */
   while (ofs < size)
     {
-msg("in while");      
-char block[512];
+      char block[512];
       size_t block_size, ret_val;
 
       block_size = size - ofs;
       if (block_size > sizeof block)
         block_size = sizeof block;
-        msg("going to read");
-      ret_val = read (fd, block, block_size);
-msg("back from read");
-      if (ret_val != block_size) {
-        msg("im going to fail");
-        fail ("read of %zu bytes at offset %zu in \"%s\" returned %zu",
-              block_size, ofs, file_name, ret_val); }
 
-        msg("im going to compare");
+      ret_val = read (fd, block, block_size);
+      if (ret_val != block_size)
+        fail ("read of %zu bytes at offset %zu in \"%s\" returned %zu",
+              block_size, ofs, file_name, ret_val);
+
       compare_bytes (block, buf + ofs, block_size, ofs, file_name);
-       // msg("back from compare %d %d", ofs, block_size);
       ofs += block_size;
-//msg("adding somehting %d", ofs);
     }
 
-msg("checking if fail");
   /* Now fail due to wrong file size. */
   if (file_size != size)
     fail ("size of %s (%zu) differs from expected (%zu)",
@@ -170,32 +163,21 @@ void
 compare_bytes (const void *read_data_, const void *expected_data_, size_t size,
                size_t ofs, const char *file_name) 
 {
-    //msg("in compare");  
-
-const uint8_t *read_data = read_data_;
+  const uint8_t *read_data = read_data_;
   const uint8_t *expected_data = expected_data_;
   size_t i, j;
   size_t show_cnt;
 
-
-//msg("before ifs");
-
-  if (memcmp (read_data, expected_data, size) == 0) {
-//msg("in first if");    
-return;
-
-}
+  if (!memcmp (read_data, expected_data, size))
+    return;
   
-  for (i = 0; i < size; i++) {
-//msg("in first for");
+  for (i = 0; i < size; i++)
     if (read_data[i] != expected_data[i])
       break;
-
-}
   for (j = i + 1; j < size; j++)
     if (read_data[j] == expected_data[j])
       break;
-    //msg("in middle of compare");
+
   quiet = false;
   msg ("%zu bytes read starting at offset %zu in \"%s\" differ "
        "from expected.", j - i, ofs + i, file_name);

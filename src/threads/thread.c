@@ -481,7 +481,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->isWaited = 0;
   sema_init(&t->complete, 0);
   sema_init(&t->waiting, 0);
-  //list_init(&(t->open_fd));
+  list_init(&(t->open_fd));
   list_push_back (&all_list, &t->allelem);
 }
 

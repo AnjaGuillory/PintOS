@@ -25,7 +25,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, const char * command, void (**eip) (void), void **esp);
 
-struct lock Lock;
+struct lock Locks;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -58,7 +58,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  lock_init(&Lock);
+  lock_init(&Locks);
 
   char *file_name = file_name_;
 
@@ -88,7 +88,9 @@ start_process (void *file_name_)
 
   else {
     struct thread *t = thread_current ();
+    lock_acquire(&Locks);
     t->self = filesys_open(token);
+    lock_release(&Locks);
     file_deny_write(t->self);
   }
 
@@ -115,7 +117,7 @@ int
 process_wait (tid_t child_tid) 
 {
 
-  //printf("tid: %p\n", child_tid);
+  //printf("tid: %d\n", child_tid);
 
   /*Access parent of child*/
   struct thread *cur = thread_current ();
@@ -124,6 +126,7 @@ process_wait (tid_t child_tid)
   
   if(!list_empty(&cur->children)) {
   
+  //lock_acquire(&Locks);
   struct list_elem *e;
     for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
     {
@@ -131,7 +134,7 @@ process_wait (tid_t child_tid)
       if (temp_child->tid == child_tid)
       {
 
-        ////printf("PID passed in is in list with tid: %p \n", temp_child);
+        //printf("PID passed in is in list with tid: %p \n", temp_child);
 
         //sema_down(&temp_child->waiting);
         //printf("name it breaks on %s\n", temp_child->name);
@@ -140,11 +143,10 @@ process_wait (tid_t child_tid)
       }
     }
   }
-
+  //lock_release(&Locks);
   // List is empty, aka no children
   //printf("name it has after loop on %s\n", temp_child->name);
   
-  //lock_acquire(&Lock);
 
   if (list_empty(&cur->children)) {
     //lock_release(&Lock);
@@ -170,6 +172,7 @@ process_wait (tid_t child_tid)
 
     if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
       temp_child->isWaited = 1;
+      //printf("sema downing %d %s\n", cur->child_exit, temp_child->name);
       sema_down(&temp_child->waiting);
       return cur->child_exit;
     }
@@ -184,6 +187,7 @@ void
 process_exit (void)
 {
 
+  lock_acquire(&Locks);
   struct thread *cur = thread_current ();
   uint32_t *pd;
   
@@ -191,6 +195,7 @@ process_exit (void)
   cur->self = NULL;
 
   sema_up(&cur->waiting); //might need to move back to syscall_exit 
+  //lock_release(&Locks);
 
   int indx = 0;
   while (indx < 128)
@@ -224,14 +229,14 @@ process_exit (void)
               struct thread *j = list_entry (e, struct thread, child);
               //printf("name of exiting thread %s\n", j->name);
               if (j->tid == cur->tid) {
-                lock_acquire(&Lock);
+                //lock_acquire(&Locks);
                 list_remove (e);
-                lock_release(&Lock);
                 break;
               }
             }
 
   }
+                lock_release(&Locks);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -343,12 +348,12 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
     goto done;
   process_activate ();
 
-  lock_acquire(&Lock);
+  lock_acquire(&Locks);
   
   /* Open executable file. */
   file = filesys_open (file_name);
   
-  lock_release(&Lock);
+  lock_release(&Locks);
   
   if (file == NULL) 
     {
@@ -440,11 +445,13 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
 
  done:
   /* We arrive here whether the load is successful or not. */
+  lock_acquire(&Locks);
   file_close (file);
   
   //printf("about to sema up\n");
   sema_up(&(t->parent)->complete);
-  thread_yield();
+  //thread_yield();
+  lock_release(&Locks);
   //printf("im back from thread_yield() %s\n", t->name);
   
   return success;
