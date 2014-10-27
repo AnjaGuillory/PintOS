@@ -331,7 +331,6 @@ unsigned tell (int fd) {
 void seek (int fd, unsigned position) {
   struct thread *cur = thread_current ();
   /* Checks if the position to change to is within the file */
-  lock_acquire(&Lock);
   if (cur->files[fd] == NULL)
     exit(-1);
   if(position > (unsigned) file_length (cur->files[fd]))
@@ -339,7 +338,6 @@ void seek (int fd, unsigned position) {
 
   /* Sets the file position to position */
   file_seek (cur->files[fd], position);
-  lock_release(&Lock); 
 
 }
 
