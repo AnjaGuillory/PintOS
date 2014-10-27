@@ -108,11 +108,12 @@ struct thread
     struct list open_fd;                 /* list of open file descriptors */
     int position;                        /* Keeps the position of the last element present in the array */
 
+
     int child_exit;                      /* Pointer to eax */
     bool isWaited;                       /* Flag that indicates if the thread is being waited on by the parent */
     struct file *self;                  /* the thread's executable */
     struct file *files[128];            /* An array of the thread's files */
-
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

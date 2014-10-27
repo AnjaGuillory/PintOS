@@ -21,12 +21,10 @@
 #include "kernel/list.h"
 #include "threads/synch.h"
 
-/*Driver: Anja*/
-
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, const char * command, void (**eip) (void), void **esp);
 
-struct lock Locks;
+struct lock Lock;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -59,7 +57,9 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  lock_init(&Locks);
+  /* Dara drove here */
+
+  lock_init (&Lock);
 
   char *file_name = file_name_;
 
@@ -69,9 +69,9 @@ start_process (void *file_name_)
 
   strlcpy (str1, file_name, PGSIZE);
 
-  token = strtok_r(str1, " ", &saveptr1);
+  /* Get the filename without arguments for loading */
+  token = strtok_r (str1, " ", &saveptr1);
 
-  //printf("FILENAME in start %s\n", file_name);
   struct intr_frame if_;
   bool success;
 
@@ -89,9 +89,11 @@ start_process (void *file_name_)
 
   else {
     struct thread *t = thread_current ();
-    lock_acquire(&Locks);
+
+    /* Indicate the executable running */
     t->self = filesys_open(token);
-    lock_release(&Locks);
+
+    /* Deny writes to the running executable */
     file_deny_write(t->self);
   }
 
@@ -117,66 +119,50 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-
-  //printf("tid: %d\n", child_tid);
+  /* Anja and Andrea drove here */
 
   /*Access parent of child*/
   struct thread *cur = thread_current ();
   struct thread *temp_child;
-  //printf("name of current thread: %s\n", cur->name);
-  
+
+  /* Check if the thread has children */
   if(!list_empty(&cur->children)) {
   
-  //lock_acquire(&Locks);
-  struct list_elem *e;
-    for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
-    {
-      temp_child = list_entry (e, struct thread, child);
-      if (temp_child->tid == child_tid)
+    struct list_elem *e;
+      for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
       {
-
-        //printf("PID passed in is in list with tid: %p \n", temp_child);
-
-        //sema_down(&temp_child->waiting);
-        //printf("name it breaks on %s\n", temp_child->name);
-        break;
-        // return cur->child_exit;
+        temp_child = list_entry (e, struct thread, child);
+        if (temp_child->tid == child_tid)
+        {
+          /* Found child thread put into temp_child */
+          break;
+        }
       }
-    }
   }
-  //lock_release(&Locks);
-  // List is empty, aka no children
-  //printf("name it has after loop on %s\n", temp_child->name);
-  
 
+  /* If the list is empty return -1 */
   if (list_empty(&cur->children)) {
-    //lock_release(&Lock);
     return -1;
   }
 
-    // Child doesn't belong to this parent, 
-    // aka 'child' made it out of the loop and was never
-    // equal to child_tid
-    ////printf("TEMP_CHILD %s\n", temp_child->name);
-    if (temp_child != NULL && temp_child->tid != child_tid){
-      //printf(" This child is not a direct child of the parent. Womp. \n");
-      //lock_release(&Lock);
-      return -1;
-    }
-    
-    if (temp_child != NULL && temp_child->isWaited == 1)
-    {
-      ////printf("This child is already being waited on... \n");
-      //lock_release(&Lock);
-      return -1;
-    }
+  /* Child_tid is not a child of the parent */
+  if (temp_child != NULL && temp_child->tid != child_tid){
+    return -1;
+  }
+  
+  /* The child is already being waited on */
+  if (temp_child != NULL && temp_child->isWaited == 1)
+  {
+    return -1;
+  }
 
-    if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
-      temp_child->isWaited = 1;
-      //printf("sema downing %d %s\n", cur->child_exit, temp_child->name);
-      sema_down(&temp_child->waiting);
-      return cur->child_exit;
-    }
+  /* Wait on the child */
+  if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
+    temp_child->isWaited = 1;
+    sema_down(&temp_child->waiting);
+    
+    return cur->child_exit;
+  }
 
   palloc_free_page(&temp_child->waiting);
   return -1;
@@ -188,7 +174,6 @@ void
 process_exit (void)
 {
 
-  lock_acquire(&Locks);
   struct thread *cur = thread_current ();
   uint32_t *pd;
   
@@ -196,7 +181,6 @@ process_exit (void)
   cur->self = NULL;
 
   sema_up(&cur->waiting); //might need to move back to syscall_exit 
-  //lock_release(&Locks);
 
   int indx = 0;
   while (indx < 128)
@@ -219,25 +203,26 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
+  /* Anja drove here */
+
   struct thread *parent = cur->parent;
   struct list children_list = parent->children;
 
   struct list_elem *e;
+  
   if (!list_empty (&children_list)) {
     for (e = list_begin (&children_list); e != list_end (&children_list);
                e = list_next (e))
-            {
-              struct thread *j = list_entry (e, struct thread, child);
-              //printf("name of exiting thread %s\n", j->name);
-              if (j->tid == cur->tid) {
-                //lock_acquire(&Locks);
-                list_remove (e);
-                break;
-              }
-            }
-
+    {
+      struct thread *j = list_entry (e, struct thread, child);
+      if (j->tid == cur->tid) {
+        lock_acquire(&Lock);
+        list_remove (e);
+        lock_release(&Lock);
+        break;
+      }
+    }
   }
-                lock_release(&Locks);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -349,12 +334,12 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
     goto done;
   process_activate ();
 
-  lock_acquire(&Locks);
+  lock_acquire(&Lock);
   
   /* Open executable file. */
   file = filesys_open (file_name);
   
-  lock_release(&Locks);
+  lock_release(&Lock);
   
   if (file == NULL) 
     {
@@ -442,18 +427,19 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
+
+  /* Andrea drove here */
+
+  /* Indicate if load was successful or not */
   t->load_flag = success;
 
- done:
   /* We arrive here whether the load is successful or not. */
-  lock_acquire(&Locks);
+ done:
+  
   file_close (file);
   
-  //printf("about to sema up\n");
+  /* Wake up the parent thread */  
   sema_up(&(t->parent)->complete);
-  //thread_yield();
-  lock_release(&Locks);
-  //printf("im back from thread_yield() %s\n", t->name);
   
   return success;
 }
@@ -612,6 +598,9 @@ install_page (void *upage, void *kpage, bool writable)
 
 void the_stack(char *file_name, void **esp)
 {
+
+  /* Dara and Andrea drove here */
+
   char *myEsp = (char *) *esp;
   char **token = palloc_get_page(PAL_ZERO);
   char **argv = palloc_get_page(PAL_ZERO);
@@ -622,14 +611,10 @@ void the_stack(char *file_name, void **esp)
   /* Make a copy of file_name */
   strlcpy (str1, file_name, PGSIZE);
 
-  //printf("original esp %p\n", myEsp);
-
-  /* Break file_name into tokens using
-  * "/bin/ls -l foo bar" - > "/bin/ls", "-l", "foo", "bar"
-  */
-
   int tk_indx = 0;
   for (;;str1 = NULL) {
+
+    /* Save arguments into an array */
     token[tk_indx] = strtok_r(str1, " ", &sptr1);
 
     /* Check if strtok_r() returns a null pointer */
@@ -641,74 +626,52 @@ void the_stack(char *file_name, void **esp)
 
   argc = tk_indx; /* Set argc to the count of the token array (# of args) */
   int s = tk_indx-1;
+
+  /* Push the arguments onto the stack in the right order */
   for (s; s >= 0; s--){
     myEsp -= strlen(token[s]) + 1;
     argv[s] = myEsp;
     memcpy(myEsp, token[s], strlen(token[s]) + 1);
-    //printf("%p, argv[%d] '%s' char[%d]\n", myEsp, s, token[s], strlen(token[s]) +1);
   }
-
-  //printf("length: %d\n", argc);
 
   /* Null Sentinel */
   argv[argc] = 0;
 
   /* Align to word size */
   int x = (unsigned int)myEsp % 4;
-  //printf("%i\n", x);
   if (x != 0)
   {
     myEsp -= x;
-    // memcpy(myEsp, &argv[argc], x);
   }
+
+  /* Anja drove here */
 
   /* Push the addresses of args onto the stack */
   int j;
   for (j = argc; j >= 0; j--) 
   {
     myEsp -= sizeof(char *);
-    //printf("%p, argv[%d] '%p' char*\n", myEsp, j, argv[j]);
     memcpy(myEsp, &argv[j], sizeof(char *));
   }
 
-  // Push argv
+  /* Push argv */
   char * tempEsp = myEsp;
   myEsp -= sizeof(char **);
   memcpy(myEsp, &tempEsp, sizeof(char **));
 
-  // Push argc 
+  /* Push argc */
   myEsp -= sizeof(int);
   memcpy(myEsp, &argc, sizeof(int));
 
-  // Push return address
+  /* Push return address */
   myEsp -= sizeof(char *);
   memcpy(myEsp, &argv[argc], sizeof(char *));
 
   /* Set esp back */
   *esp = myEsp;
- // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
-  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
   /* Free pages */
   palloc_free_page(argv);
   palloc_free_page(token);
   palloc_free_page(str1);
-
-/*
-- break filename into tokens
-- "/bin/ls -l foo bar" - > "/bin/ls", "-l", "foo", "bar"
-- store each token in list
-- push the values in each token to the stack
-- somewhere in here do word alignment 
-  - (round the pointer to a multiple of 4 before first push)
-- push a null sentinel
-- push the address of each token from right to left
-  - &bar, &foo, ...
-- push argv (the pointer to the pointer of the token)
-- push argc (the number of arguments - aka length of list)
-- push return address (can be anything)
-- set esp to myEsp
-- call hexdump hex_dump(*esp, *esp, PHYS_BASE-*esp, 1)
-- pintos --filesys-size=2 -p ../../examples/echo -a echo -- -f -q run 'echo x’
-*/
 }
