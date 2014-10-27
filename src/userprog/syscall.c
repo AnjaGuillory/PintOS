@@ -196,7 +196,7 @@ void exit (int status) {
   strlcpy (str1, cur->name, PGSIZE);
   token = strtok_r(str1, " ", &saveptr1);
   
-  printf("%s: exit(%d)\n", cur->name, status);
+  printf("%s: exit(%d)\n", token, status);
   palloc_free_page(str1);
   /*char * stat = &status;
   ////printf("\n");
