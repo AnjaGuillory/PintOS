@@ -160,14 +160,12 @@ process_wait (tid_t child_tid)
   if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
     temp_child->isWaited = 1;
     sema_down(&temp_child->waiting);
-    
     return cur->child_exit;
   }
 
-  palloc_free_page(&temp_child->waiting);
+  palloc_free_page (&temp_child->waiting);
   return -1;
 }
-
 
 /* Free the current process's resources. */
 void
@@ -176,15 +174,17 @@ process_exit (void)
 
   struct thread *cur = thread_current ();
   uint32_t *pd;
-  
+
+  /* When a thread exits, needs to call close on its executable,
+   so writes can be allowed */
   file_close(cur->self);
   cur->self = NULL;
 
-  sema_up(&cur->waiting); //might need to move back to syscall_exit 
+  sema_up (&cur->waiting); 
 
   int indx = 0;
   while (indx < 128)
-    palloc_free_page(cur->files[indx]);
+    palloc_free_page (cur->files[indx]);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -326,15 +326,13 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   bool success = false;
   int i;
 
-
-
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
 
-  lock_acquire(&Lock);
+  lock_acquire (&Lock);
   
   /* Open executable file. */
   file = filesys_open (file_name);
@@ -570,7 +568,7 @@ setup_stack (char *file_name, void **esp)
         palloc_free_page (kpage);
     }
 
-  the_stack(file_name, esp);
+  the_stack (file_name, esp);
 
   return success;
 }
@@ -602,8 +600,8 @@ void the_stack(char *file_name, void **esp)
   /* Dara and Andrea drove here */
 
   char *myEsp = (char *) *esp;
-  char **token = palloc_get_page(PAL_ZERO);
-  char **argv = palloc_get_page(PAL_ZERO);
+  char **token = palloc_get_page (PAL_ZERO);
+  char **argv = palloc_get_page (PAL_ZERO);
   char *str1 = palloc_get_page (0);
   char *sptr1;
   int argc = 0;
