@@ -48,13 +48,12 @@ test_main (void)
     {
       char block[BLOCK_SIZE];
       size_t ofs = BLOCK_SIZE * order[i];
-	msg("in test pos %d", ofs);
       seek (fd, ofs);
       if (read (fd, block, BLOCK_SIZE) != BLOCK_SIZE)
         fail ("read %d bytes at offset %zu failed", (int) BLOCK_SIZE, ofs);
       compare_bytes (block, buf + ofs, BLOCK_SIZE, ofs, file_name);
     }
-
   msg ("close \"%s\"", file_name);
   close (fd);
+
 }
