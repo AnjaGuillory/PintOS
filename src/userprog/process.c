@@ -126,7 +126,7 @@ process_wait (tid_t child_tid)
   struct thread *temp_child;
 
   /* Check if the thread has children */
-  if(!list_empty(&cur->children)) {
+  if(!list_empty (&cur->children)) {
   
     struct list_elem *e;
       for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
@@ -177,7 +177,7 @@ process_exit (void)
 
   /* When a thread exits, needs to call close on its executable,
    so writes can be allowed */
-  file_close(cur->self);
+  file_close (cur->self);
   cur->self = NULL;
 
   sema_up (&cur->waiting); 
@@ -216,9 +216,9 @@ process_exit (void)
     {
       struct thread *j = list_entry (e, struct thread, child);
       if (j->tid == cur->tid) {
-        lock_acquire(&Lock);
+        lock_acquire (&Lock);
         list_remove (e);
-        lock_release(&Lock);
+        lock_release (&Lock);
         break;
       }
     }
@@ -437,7 +437,7 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   file_close (file);
   
   /* Wake up the parent thread */  
-  sema_up(&(t->parent)->complete);
+  sema_up (&(t->parent)->complete);
   
   return success;
 }
@@ -594,7 +594,7 @@ install_page (void *upage, void *kpage, bool writable)
 }
 
 
-void the_stack(char *file_name, void **esp)
+void the_stack (char *file_name, void **esp)
 {
 
   /* Dara and Andrea drove here */
@@ -613,7 +613,7 @@ void the_stack(char *file_name, void **esp)
   for (;;str1 = NULL) {
 
     /* Save arguments into an array */
-    token[tk_indx] = strtok_r(str1, " ", &sptr1);
+    token[tk_indx] = strtok_r (str1, " ", &sptr1);
 
     /* Check if strtok_r() returns a null pointer */
     if (token[tk_indx] == NULL)
@@ -627,16 +627,16 @@ void the_stack(char *file_name, void **esp)
 
   /* Push the arguments onto the stack in the right order */
   for (s; s >= 0; s--){
-    myEsp -= strlen(token[s]) + 1;
+    myEsp -= strlen (token[s]) + 1;
     argv[s] = myEsp;
-    memcpy(myEsp, token[s], strlen(token[s]) + 1);
+    memcpy (myEsp, token[s], strlen (token[s]) + 1);
   }
 
   /* Null Sentinel */
   argv[argc] = 0;
 
   /* Align to word size */
-  int x = (unsigned int)myEsp % 4;
+  int x = (unsigned int) myEsp % 4;
   if (x != 0)
   {
     myEsp -= x;
@@ -649,27 +649,27 @@ void the_stack(char *file_name, void **esp)
   for (j = argc; j >= 0; j--) 
   {
     myEsp -= sizeof(char *);
-    memcpy(myEsp, &argv[j], sizeof(char *));
+    memcpy (myEsp, &argv[j], sizeof (char *));
   }
 
   /* Push argv */
   char * tempEsp = myEsp;
-  myEsp -= sizeof(char **);
-  memcpy(myEsp, &tempEsp, sizeof(char **));
+  myEsp -= sizeof (char **);
+  memcpy(myEsp, &tempEsp, sizeof (char **));
 
   /* Push argc */
-  myEsp -= sizeof(int);
-  memcpy(myEsp, &argc, sizeof(int));
+  myEsp -= sizeof (int);
+  memcpy(myEsp, &argc, sizeof (int));
 
   /* Push return address */
-  myEsp -= sizeof(char *);
-  memcpy(myEsp, &argv[argc], sizeof(char *));
+  myEsp -= sizeof (char *);
+  memcpy (myEsp, &argv[argc], sizeof (char *));
 
   /* Set esp back */
   *esp = myEsp;
 
   /* Free pages */
-  palloc_free_page(argv);
-  palloc_free_page(token);
-  palloc_free_page(str1);
+  palloc_free_page (argv);
+  palloc_free_page (token);
+  palloc_free_page (str1);
 }
