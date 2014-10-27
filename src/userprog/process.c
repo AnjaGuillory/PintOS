@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -617,7 +618,7 @@ void the_stack(char *file_name, void **esp)
   char *str1 = palloc_get_page (0);
   char *sptr1;
   int argc = 0;
-  
+
   /* Make a copy of file_name */
   strlcpy (str1, file_name, PGSIZE);
 

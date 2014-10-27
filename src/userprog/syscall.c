@@ -52,6 +52,7 @@ syscall_init (void)
   
 }
 
+
 int* getArgs(int * myEsp, int count) {
   //printf("count %d %s\n", count, thread_current()->name);
   int* args[count];
@@ -76,19 +77,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   int * myEsp = f->esp;
   struct thread *cur = thread_current ();
-  ////printf("in syscall handler\n");
-  if(checkPointer(myEsp) == -1)
-    exit(-1);
-  /* Check if pointer is a user virtual address 
-   * NEED: add check for unmapped territory
-   */
-   ////printf("%d\n", f->vec_no);
-   // if(f->vec_no == 14) {
-   //  ////printf("in vecno == 14");
-   //  exit(-1);
-   // }
 
-   if(checkPointer(f->esp) == -1)
+  if(checkPointer(f->esp) == -1)
     exit(-1);
 
   if ((void *) f->esp >= PHYS_BASE)
@@ -99,20 +89,11 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   uint32_t num = *myEsp;
 
-  /*if (!(is_user_vaddr (myEsp + 1) && is_user_vaddr (myEsp + 2) && is_user_vaddr (myEsp + 3)))
-    exit(-1); */
+  if (!(is_user_vaddr (myEsp + 1) && is_user_vaddr (myEsp + 2) && is_user_vaddr (myEsp + 3)))
+    exit(-1); 
 
   if (num < SYS_HALT || num > SYS_CLOSE)
     exit(-1);
-
-  //////printf ("num: %d\n", num);
-
-  int sizes;
-  char *cmd_line;
-
-  int* args;
-
-  ////printf("allocated files[0] and filesize\n");  
   
   //printf("checking fd\n");
   if(list_empty(&cur->open_fd)) {
@@ -120,17 +101,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       struct filing *fil = palloc_get_page (0);
 
     fil->fd = 2;
-    //files[0] = fil;
     cur->position = 2;
     list_push_back(&cur->open_fd, &fil->elms);
-    /* Creates a node with the first file descriptor open */
-    
+    /* Creates a node with the first file descriptor open */  
   }
-
-
-  
-  //printf("going to switch %d\n", num);
-
 
   /* SWITCHHHHHH */
   switch (num) {
@@ -146,10 +120,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_EXEC:
       // EXEC
-  /*    if(checkPointer(*(myEsp+1)) == -1)
-      {
-        exit(-1);
-      }*/
       args = getArgs (myEsp, 1);
       pid_t execs = exec (args[0]);
       f->eax = execs;
@@ -161,12 +131,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_CREATE:
       // CREATE
-      //file = *(myEsp + 1);
-      //initial_size = *(myEsp + 2);
-      /*if(checkPointer(*(myEsp+2)) == -1)
-      {
-        exit(-1);
-      }*/
       args = getArgs (myEsp, 2);
       f->eax = create (args[0], args[1]);
       break;
@@ -177,10 +141,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_OPEN:
       // OPEN
-      /*if(checkPointer(*(myEsp+1)) == -1)
-      {
-        exit(-1);
-      }*/
       args = getArgs (myEsp, 1);
       f->eax = open (args[0]);
       break;
@@ -191,32 +151,19 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_READ:
       // READ
-      /*if(checkPointer(*(myEsp+3)) == -1)
-      {
-        exit(-1);
-      }*/
-      //printf("going to read from syscall\n");
       args = getArgs (myEsp, 3);
+
       f->eax = read (args[0], args[1], args[2]);
       // f->eax = reads;
       break;
     case SYS_WRITE:
       // WRITE
-      /*if(checkPointer(*(myEsp+2)) == -1)
-      {
-        exit(-1);
-      }
-      if(checkPointer(*(myEsp+2+*(myEsp+3))) == -1)
-      {
-        exit(-1);
-      }*/
       args = getArgs (myEsp, 3);
       f->eax = write (args[0], args[1], args[2]);
       break;
     case SYS_SEEK:
       // SEEK
       args = getArgs (myEsp, 2);
-      //printf("after args\n");
       seek (args[0], args[1]);
       break;
     case SYS_TELL:
@@ -237,13 +184,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Get any system call arguments */
   /* Switch statement checks the number and calls the right function */
   /* Implement each function */
-  /*int i = 0;
-  while (argCount > 0) {
-    free(args[i]);
-    argCount--;
-    i++;
-  }*/
-
   //thread_exit ();
 }
 
@@ -334,6 +274,8 @@ int write (int fd, const void *buffer, unsigned size) {
 
   else if (fd == 1){
     
+    if (buffer == NULL)
+      exit(-1);
 
     if (size < 300) {
       putbuf((char *) buffer + charWritten, size);
@@ -344,7 +286,6 @@ int write (int fd, const void *buffer, unsigned size) {
       putbuf((char *)buffer + charWritten, 300);
       charWritten += 300;
       size -= 300;
-      console_print_stats();
       }
 
       /* calls putbuf on the rest of the buffer */
@@ -450,16 +391,14 @@ unsigned tell (int fd) {
 }
 
 void seek (int fd, unsigned position) {
-  lock_acquire(&Lock);
   struct thread *cur = thread_current ();
   /* Checks if the position to change to is within the file */
 
-  if (cur->files[fd] == NULL){ // Added because of failing rox-child test {
-    lock_release(&Lock);
+  lock_acquire(&Lock);
+  if (cur->files[fd] == NULL) // Added because of failing rox-child test
     exit(-1);
-  }
+  
   if(position > (unsigned) file_length (cur->files[fd])) {
-    lock_release(&Lock);
     exit(-1);
   }
 
@@ -514,7 +453,7 @@ int read (int fd, void *buffer, unsigned size)
   int charsRead = 0;
 
   /* Checks buffer for a bad pointer */
-  if(checkPointer(buffer) == -1 || fd == 1)
+  if(checkPointer(buffer) == -1)
     exit(-1);
   
   if(fd == 0)
