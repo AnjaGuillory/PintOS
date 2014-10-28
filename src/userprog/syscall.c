@@ -86,7 +86,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   if (num > SYS_CLOSE)
     exit (-1);
 
-  int* args = palloc_get_page (0);
+  int* args = (int *)malloc(sizeof(int));
   
   /* Dara and Anja drove here */
 
@@ -184,13 +184,10 @@ void exit (int status) {
   (cur->parent)->child_exit = status;
 
   /* Gets the name of the current thread */
-  char *str1, *token, *saveptr1;
-  str1 = palloc_get_page (0);
-  strlcpy (str1, cur->name, PGSIZE);
-  token = strtok_r (str1, " ", &saveptr1);
+  char *token, *saveptr1;
+  token = strtok_r (cur->name, " ", &saveptr1);
   
   printf ("%s: exit(%d)\n", token, status);
-  palloc_free_page (str1);
 
   /* Exits the thread */
   thread_exit ();
@@ -298,13 +295,13 @@ int open (const char *file)  {
   struct filing *fil = list_entry (list_pop_front (&cur->open_fd), struct filing, elms);
   
   /* Allocate space for the index */
-  cur->files[fil->fd] = palloc_get_page (0);
+  cur->files[fil->fd] = (struct file *)malloc(sizeof(struct file));
 
   /* Checks if the file system was able to open the file 
     and if the number of files has exceeded 128 */
   if (openFile == NULL || ((fil->fd > 127 || cur->position > 127) && list_empty(&cur->open_fd)) || fil->fd < 2 || cur->position < 2)
   {
-    palloc_free_page (cur->files[fil->fd]);
+    free(cur->files[fil->fd]);
     return -1;
   }
 
@@ -399,15 +396,15 @@ void close (int fd) {
 
   /* Opens spot in array */
   cur->files[fd] = NULL;
-  palloc_free_page (cur->files[fd]);
+  free (cur->files[fd]);
 
-  struct filing *fil = palloc_get_page (0);
+  struct filing *fil = (struct filing*)malloc(sizeof(struct filing));
   fil->fd = fd;
 
   /* Adds freed fd to list of open fds */
   list_push_back (&cur->open_fd, &fil->elms);
 
-  palloc_free_page (fil);
+  free (fil);
 }
 
 int read (int fd, void *buffer, unsigned size) 
