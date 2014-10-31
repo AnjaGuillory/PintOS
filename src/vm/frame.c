@@ -25,6 +25,7 @@
 
 //struct hash frametable;
 static struct frame *frame_table[TABLE_SIZE];
+static int frame_pointer;
 static struct lock Lock;
 
 
@@ -38,18 +39,19 @@ frametable_init (){
 }
 
 void 
-frame_put (void * paddr, size_t page_cnt){
+frame_put (void * kpage, size_t page_cnt){
   bool success = 0;
 
-  unsigned int i;
+  int i;
   for(i = 0; i < TABLE_SIZE; i++) {
     struct frame *frame = frame_table[i];
     if(frame->isAllocated == 0) {
-      frame->pageAddr = paddr;
+      frame->addr = kpage;
       frame->frame_num = (uint32_t) paddr & 0xFF400000;
       frame->offset = (uint32_t) paddr & 0x000FFFFF;
       frame->isAllocated = 1;
       frame->pagedIn = 1;
+      frame->clockbit = 1;
 
       success = 1;
       break;
@@ -58,35 +60,64 @@ frame_put (void * paddr, size_t page_cnt){
 
   if (success == 0) {
     // call the eviction policy
-    frame_evict();
+    frame_evict(kpage, page_cnt);
     PANIC ("RAN OUT OF FRAME PAGES");
   }
   //hash_insert(frame);
 }
 
-void frame_evict(){
+void frame_evict(void * kpage, size_t page_cnt){
   // clock page algorithm
+  // everytime we add a new frame, set clock bit to 1
+  // when there are no more frames, go through looking for 0 clock bit,
+  // until we find it, we set all clock bit == 1 to 0. 
+  // when we find clockbit == 0, evict that frame,
+  // replace the page in the frame, and set clock bit to 1,
+  // then place the pointer after that frame
+
+  int i;
+  for (i = 0; i < TABLE_SIZE; i++){
+    struct frame *frame = frame_table[i];
+
+    if (frame->clockbit == 0)
+    {
+      frame_clean(i);
+      frame_put(kpage, page_cnt);
+      if (i == TABLE_SIZE - 1)
+        frame_pointer = 0;
+      else
+        frame_pointer = i + 1;
+      break;
+    }
+    else
+      frame->clockbit = 0;
+  }
+
+
 }
 
-void frame_clean(void * paddr)
-{
-  unsigned int i;
+
+int frame_find_kpage (void * kpage){
+  int i;
   for(i = 0; i < TABLE_SIZE; i++)
   {
     if (frame_table[i]->pageAddr == paddr)
-    {
-    frame_null();
-    break;
-    }
+      return i;
   }
 }
 
-void frame_null (){
-  frame->pageAddr = NULL;
+void frame_clean(int indx)
+{
+  frame_null(frame_table[indx]);
+}
+
+void frame_null (struct frame *frame){
+  frame->addr = NULL;
   frame->frame_num = 0;
   frame->offset = 0;
   frame->isAllocated = 0;
   frame->pagedIn = 0;
+  frame->clockbit = 0;
 }
 
   

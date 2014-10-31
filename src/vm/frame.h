@@ -7,11 +7,12 @@
  #define TABLE_SIZE (uint32_t) 1024
 
 struct frame {
-  void * pageAddr;
+  void * addr;
   uint32_t frame_num;
   uint32_t offset;
   bool isAllocated;
   bool pagedIn;
+  int clockbit;
   //struct hash_elem hash_elem; /* Hash table element. */
 };
 
