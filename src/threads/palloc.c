@@ -91,7 +91,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
-      else if (flags & PAL_USER) {
+      if (flags & PAL_USER) {
         frame_put (pages, page_cnt);
       }
     }

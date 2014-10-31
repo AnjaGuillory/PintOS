@@ -31,10 +31,11 @@ static struct lock Lock;
 
 void 
 frametable_init (){
+  frame_pointer = 0;
   unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++) {
     frame_table[i] = (struct frame *) malloc (sizeof (struct frame));
-    frame_null();
+    frame_null(frame_table[i]);
   }  
 }
 
@@ -42,13 +43,13 @@ void
 frame_put (void * kpage, size_t page_cnt){
   bool success = 0;
 
-  int i;
+  unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++) {
     struct frame *frame = frame_table[i];
     if(frame->isAllocated == 0) {
       frame->addr = kpage;
-      frame->frame_num = (uint32_t) paddr & 0xFF400000;
-      frame->offset = (uint32_t) paddr & 0x000FFFFF;
+      frame->frame_num = (uint32_t) kpage & 0xFF400000;
+      frame->offset = (uint32_t) kpage & 0x000FFFFF;
       frame->isAllocated = 1;
       frame->pagedIn = 1;
       frame->clockbit = 1;
@@ -70,13 +71,13 @@ void frame_evict(void * kpage, size_t page_cnt){
   // clock page algorithm
   // everytime we add a new frame, set clock bit to 1
   // when there are no more frames, go through looking for 0 clock bit,
-  // until we find it, we set all clock bit == 1 to 0. 
+  // until we find it, we set all clock bit == 1 to 0. `
   // when we find clockbit == 0, evict that frame,
   // replace the page in the frame, and set clock bit to 1,
   // then place the pointer after that frame
 
-  int i;
-  for (i = 0; i < TABLE_SIZE; i++){
+  unsigned int i;
+  for (i = frame_pointer; i < TABLE_SIZE; i++){
     struct frame *frame = frame_table[i];
 
     if (frame->clockbit == 0)
@@ -98,12 +99,14 @@ void frame_evict(void * kpage, size_t page_cnt){
 
 
 int frame_find_kpage (void * kpage){
-  int i;
+  unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++)
   {
-    if (frame_table[i]->pageAddr == paddr)
+    if (frame_table[i]->addr == kpage)
       return i;
   }
+
+  return -1;
 }
 
 void frame_clean(int indx)

@@ -17,6 +17,10 @@ struct frame {
 };
 
 void frametable_init (void);
-void frame_put (void * paddr, size_t page_cnt);
+void frame_put (void *, size_t);
+void frame_evict (void * , size_t);
+int frame_find_kpage (void *);
+void frame_clean(int);
+void frame_null (struct frame *);
 
 #endif /* vm/frame.h */
