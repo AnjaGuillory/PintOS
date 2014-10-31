@@ -30,24 +30,11 @@ static struct lock Lock;
 
 void 
 frametable_init (){
-  struct frame *frame;
-
   unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++) {
-    frame = (struct frame *) malloc ((sizeof (struct frame)));
-    frame->pageAddr = NULL;
-    frame->frame_num = 0;
-    frame->offset = 0;
-    frame->isAllocated = 0;
-    frame->pagedIn = 0;
-
     frame_table[i] = (struct frame *) malloc (sizeof (struct frame));
-    frame_table[i] = frame;
+    frame_null();
   }  
-
-  /*frame_table[0] = (struct frame *) malloc (sizeof (struct frame));
-  frame_table[0]->pageAddr = NULL;*/
-  //hash_init (&frametable, frame_hash, frame_less, NULL);
 }
 
 void 
@@ -70,10 +57,38 @@ frame_put (void * paddr, size_t page_cnt){
   }
 
   if (success == 0) {
+    // call the eviction policy
+    frame_evict();
     PANIC ("RAN OUT OF FRAME PAGES");
   }
   //hash_insert(frame);
 }
+
+void frame_evict(){
+  // clock page algorithm
+}
+
+void frame_clean(void * paddr)
+{
+  unsigned int i;
+  for(i = 0; i < TABLE_SIZE; i++)
+  {
+    if (frame_table[i]->pageAddr == paddr)
+    {
+    frame_null();
+    break;
+    }
+  }
+}
+
+void frame_null (){
+  frame->pageAddr = NULL;
+  frame->frame_num = 0;
+  frame->offset = 0;
+  frame->isAllocated = 0;
+  frame->pagedIn = 0;
+}
+
   
 /* Returns a hash value for page p. */
 // unsigned
