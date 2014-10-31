@@ -10,6 +10,7 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -42,8 +43,6 @@ static bool page_from_pool (const struct pool *, void *page);
 
 /* Initializes the page allocator.  At most USER_PAGE_LIMIT
    pages are put into the user pool. */
-
-/*** INITIALIZES USER ALLOCATOR ***/
 void
 palloc_init (size_t user_page_limit)
 {
@@ -92,6 +91,9 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
+      else if (flags & PAL_USER) {
+        frame_put (pages, page_cnt);
+      }
     }
   else 
     {
