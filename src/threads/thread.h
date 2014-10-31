@@ -103,9 +103,16 @@ struct thread
 
     bool load_flag;                      /* Indicates whether thread loaded successfully */
 
+    /* Andrea drove here */
     struct semaphore complete;           /* Indicates whether thread completes execution*/
     struct semaphore waiting;            /* Allows parent to wait for child */
+    struct list open_fd;                 /* list of open file descriptors */
+    int position;                        /* Keeps the position of the last element present in the array */
 
+    /* Dara drove here */
+
+    int exited;
+    struct semaphore exiting;
     int child_exit;                      /* Pointer to eax */
     bool isWaited;                       /* Flag that indicates if the thread is being waited on by the parent */
     struct file *self;                  /* the thread's executable */
@@ -157,3 +164,4 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 #endif /* threads/thread.h */
+

@@ -36,7 +36,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
+  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -130,13 +130,7 @@ process_wait (tid_t child_tid)
       temp_child = list_entry (e, struct thread, child);
       if (temp_child->tid == child_tid)
       {
-
-        ////printf("PID passed in is in list with tid: %p \n", temp_child);
-
-        //sema_down(&temp_child->waiting);
-        //printf("name it breaks on %s\n", temp_child->name);
         break;
-        // return cur->child_exit;
       }
     }
   }
@@ -168,13 +162,15 @@ process_wait (tid_t child_tid)
       return -1;
     }
 
-    if (temp_child != NULL && temp_child->tid == child_tid && temp_child->status != THREAD_DYING){
+    if (temp_child != NULL && temp_child->tid == child_tid){
       temp_child->isWaited = 1;
       sema_down(&temp_child->waiting);
-      return cur->child_exit;
+      int exit_status = temp_child->child_exit;
+      sema_up(&temp_child->exiting);
+      return exit_status;
     }
 
-  palloc_free_page(&temp_child->waiting);
+  //palloc_free_page(&temp_child->waiting);
   return -1;
 }
 
@@ -190,7 +186,14 @@ process_exit (void)
   file_close(cur->self);
   cur->self = NULL;
 
-  sema_up(&cur->waiting); //might need to move back to syscall_exit 
+  //sema_up(&cur->waiting); //might need to move back to syscall_exit 
+  /* Gets the name of the current thread */
+  
+  sema_up(&cur->waiting);
+  if(cur->isWaited == 1)
+  {
+    sema_down(&cur->exiting);
+  }
 
   int indx = 0;
   while (indx < 128)

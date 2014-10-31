@@ -13,9 +13,12 @@
 
    The size of each request, in bytes, is rounded up to a power
    of 2 and assigned to the "descriptor" that manages blocks of
-   that size.  The descriptor keeps a list of free blocks.  If
+   that size.  
+
+
+   ******The descriptor keeps a list of free blocks.  If
    the free list is nonempty, one of its blocks is used to
-   satisfy the request.
+   satisfy the request.******
 
    Otherwise, a new page of memory, called an "arena", is
    obtained from the page allocator (if none is available,
@@ -34,7 +37,7 @@
    with the page allocator and sticking the allocation size at
    the beginning of the allocated block's arena header. */
 
-/* Descriptor. */
+/* Descriptor. The descriptor keeps a list of free blocks*/
 struct desc
   {
     size_t block_size;          /* Size of each element in bytes. */
@@ -46,7 +49,7 @@ struct desc
 /* Magic number for detecting arena corruption. */
 #define ARENA_MAGIC 0x9a548eed
 
-/* Arena. */
+/* Arena. a new page of memory, called an "arena"*/
 struct arena 
   {
     unsigned magic;             /* Always set to ARENA_MAGIC. */

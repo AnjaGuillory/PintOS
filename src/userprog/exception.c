@@ -158,7 +158,7 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
 
   printf("There is no crying in Pintos!\n");
+  exit(-1);
 
-  kill (f);
 }
 

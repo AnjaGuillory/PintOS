@@ -42,6 +42,8 @@ static bool page_from_pool (const struct pool *, void *page);
 
 /* Initializes the page allocator.  At most USER_PAGE_LIMIT
    pages are put into the user pool. */
+
+/*** INITIALIZES USER ALLOCATOR ***/
 void
 palloc_init (size_t user_page_limit)
 {

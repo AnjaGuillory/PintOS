@@ -43,8 +43,10 @@ static inline void *pg_round_down (const void *va) {
 /* Base address of the 1:1 physical-to-virtual mapping.  Physical
    memory is mapped starting at this virtual address.  Thus,
    physical address 0 is accessible at PHYS_BASE, physical
-   address address 0x1234 at (uint8_t *) PHYS_BASE + 0x1234, and
-   so on.
+   address address 0x1234 at 
+
+   ***(uint8_t *) PHYS_BASE + 0x1234, and
+   so on.*** subtraction gives corresponding physical address
 
    This address also marks the end of user programs' address
    space.  Up to this point in memory, user programs are allowed

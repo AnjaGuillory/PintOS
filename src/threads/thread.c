@@ -479,9 +479,11 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->children)); /*Initialize list of children*/
   t->load_flag = 0;
   t->isWaited = 0;
+  t->exited = 0;
   sema_init(&t->complete, 0);
   sema_init(&t->waiting, 0);
-  //list_init(&(t->open_fd));
+  sema_init(&t->exiting, 0);
+  list_init(&(t->open_fd));
   list_push_back (&all_list, &t->allelem);
 }
 
@@ -598,3 +600,4 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
