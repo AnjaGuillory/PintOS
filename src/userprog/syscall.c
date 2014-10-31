@@ -181,14 +181,15 @@ void exit (int status) {
   global_status = status;
 
   /* Gives the parent the child's exit status */
-  (cur->parent)->child_exit = status;
+  cur->child_exit = status;
 
-  /* Gets the name of the current thread */
   char *token, *saveptr1;
   token = strtok_r (cur->name, " ", &saveptr1);
   
-  printf ("%s: exit(%d)\n", token, status);
 
+  printf ("%s: exit(%d)\n", token, cur->child_exit);
+  //printf("%d\n", cur->child_exit);
+  
   /* Exits the thread */
   thread_exit ();
 }
@@ -482,9 +483,11 @@ pid_t exec (const char *cmd_line)
     if (j->tid == result) {
       /* Check if the child loaded */
       if (j->load_flag == 1) {
+        //printf("result %d\n", result);
         return result;
       }
       else {
+        //printf("hey\n");
           return -1;
       }
     }
@@ -515,7 +518,7 @@ int checkPointer (const void * buffer)
   /* Checks if buffer doesn't have anything in it */
   if (buffer == NULL)
     exit(-1);
-  
+
   /* Checks if pointer is in user space */
   else if (!is_kernel_vaddr (buffer)) {
     /* Checks if the pointer is mapped */
