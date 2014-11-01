@@ -1,0 +1,52 @@
+10/27, 5:30-7:00, 1.50 hours, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Andrea, 30 minutes
+Dara, 30 minutes
+Anja, 30 minutes
+Andrea, 30 minutes
+
+10/28, 5:00-7:00, 2.00 hours, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/29, 5:00-7:00, 2.00 hours, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+
+10/30, 5:30-10:00, 4.50 hours, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+
+10/31, 2:00-5:30, 3.50 hours, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+
+11/1,  10:00-1:30, 3.50 hours, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Anja, 30 minutes
+Andrea, 30 minutes
+Dara, 30 minutes
+Anja, 30 minutes
+Andrea, 30 minutes
+Dara, 30 minutes
+
+UPDATE 10/11:
+We changed the name of the struct to frame_entry from frame to help prevent confusion that the struct reflects a frame entry and not a frame itself. Also, changed pagedIn to swappedIn because not sure how to deal with finding out of a page is paged in or not since there is not yet a mapping from frame addresses to page addresses. Also added some lock acquires and releases around functions that need to be synchronized. We will most likely have to come up with semaphores to synchronize these functions also with mutual exclusion. Added a few lines to frame_put for processes that need multiple pages, and made a few comments as to future problems and questions that need answering. 
+

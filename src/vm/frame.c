@@ -23,10 +23,10 @@
 #include "threads/malloc.h"
 #include "vm/frame.h"
 
-//struct hash frametable;
-static struct frame *frame_table[TABLE_SIZE];
-static int frame_pointer;
-static struct lock Lock;
+static struct frame_entry *frame_table[TABLE_SIZE];	/* Frame table */
+static int frame_pointer;				/* Frame pointer for clock algorithm */
+static struct lock Lock;				/* Lock synchronize frame table operations*/
+
 
 
 void 
@@ -34,37 +34,75 @@ frametable_init (){
   frame_pointer = 0;
   unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++) {
-    frame_table[i] = (struct frame *) malloc (sizeof (struct frame));
+    frame_table[i] = (struct frame_entry *) malloc (sizeof (struct frame_entry));
     frame_null(frame_table[i]);
   }  
 }
 
+/*Problem: We're not checking if the address we are pointing to 
+ is actually available in memory, also we're not error checking
+the address. Also, how do we need to indicate to the process where
+each page ends so that is doesn't access another process' frame?*/
+
+/*Is kpage a frame address or a vm address?*/
+/*Most likely will need hash table to map memory */
+
+/*This part MUST be synchronized */
 void 
 frame_put (void * kpage, size_t page_cnt){
   bool success = 0;
 
   unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++) {
-    struct frame *frame = frame_table[i];
-    if(frame->isAllocated == 0) {
-      frame->addr = kpage;
-      frame->frame_num = (uint32_t) kpage & 0xFF400000;
-      frame->offset = (uint32_t) kpage & 0x000FFFFF;
-      frame->isAllocated = 1;
-      frame->pagedIn = 1;
-      frame->clockbit = 1;
+     lock_acquire(&Lock);
+    /*Reset success to 0 to record success for every page
+      This way, if there is at least one failure, the allocation will fail*/
+    success = 0;
+    /*Need to check if the kpage points to something,
+     this way we don't auto-overwrite */
+   /*Also need to check if the address goes over MM*/
+    while(kpage != NULL) {
+	kpage += PG_SIZE;
+    }
+    struct frame_entry *entry = frame_table[i];
+    if(entry->isAllocated == 0) {
+      entry->addr = kpage;
+      /*If there is more than one page to allocate
+	Set up another address for the next page*/
+      if(page_cnt > 1)
+      {
+	kpage += PG_SIZE;
+        page_cnt--; 
+      }
+      entry->frame_num = (uint32_t) kpage & 0xFF400000;
+      entry->offset = (uint32_t) kpage & 0x000FFFFF;
+      entry->isAllocated = 1;
+      //entry->pagedIn = 1;
+      entry->clockbit = 1;
 
       success = 1;
-      break;
+
+      /*when we're done, break*/
+      if(page_cnt == 0)
+	break;
     }
+   else {
+     /*If the current frame we are accessing
+       is unavailable and there are still more frames,
+       Keep looking and checking them*/
+     if(page_cnt > 1)
+	kpage += PG_SIZE;
+   }
+   
   }
 
   if (success == 0) {
-    // call the eviction policy
+    /*Call the eviction policy*/
+    lock_release(&Lock);
     frame_evict(kpage, page_cnt);
     PANIC ("RAN OUT OF FRAME PAGES");
   }
-  //hash_insert(frame);
+  lock_release(&Lock);
 }
 
 void frame_evict(void * kpage, size_t page_cnt){
@@ -78,9 +116,9 @@ void frame_evict(void * kpage, size_t page_cnt){
 
   unsigned int i;
   for (i = frame_pointer; i < TABLE_SIZE; i++){
-    struct frame *frame = frame_table[i];
-
-    if (frame->clockbit == 0)
+    struct frame_entry *entry = frame_table[i];
+    lock_acquire(&Lock);
+    if (entry->clockbit == 0)
     {
       frame_clean(i);
       frame_put(kpage, page_cnt);
@@ -91,9 +129,9 @@ void frame_evict(void * kpage, size_t page_cnt){
       break;
     }
     else
-      frame->clockbit = 0;
+      entry->clockbit = 0;
   }
-
+    lock_release(&Lock);
 
 }
 
@@ -114,48 +152,12 @@ void frame_clean(int indx)
   frame_null(frame_table[indx]);
 }
 
-void frame_null (struct frame *frame){
-  frame->addr = NULL;
-  frame->frame_num = 0;
-  frame->offset = 0;
-  frame->isAllocated = 0;
-  frame->pagedIn = 0;
-  frame->clockbit = 0;
+void frame_null (struct frame_entry *entry){
+  entry->addr = NULL;
+  entry->frame_num = 0;
+  entry->offset = 0;
+  entry->isAllocated = 0;
+  //frame_entry->pagedIn = 0;
+  entry->clockbit = 0;
 }
-
-  
-/* Returns a hash value for page p. */
-// unsigned
-// frame_hash (const struct hash_elem *p_, void *aux UNUSED)
-// {
-//   const struct page *p = hash_entry (p_, struct page, hash_elem);
-//   return hash_bytes (&p->addr, sizeof p->addr);
-// }
-
-// /* Returns true if page a precedes page b. */
-// bool
-// frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
-//            void *aux UNUSED)
-// {
-//   const struct page *a = hash_entry (a_, struct page, hash_elem);
-//   const struct page *b = hash_entry (b_, struct page, hash_elem);
-
-//   return a->addr < b->addr;
-// }
-
-
-
-// /* Returns the page containing the given virtual address,
-//    or a null pointer if no such page exists. */
-// struct page *
-// frame_lookup (const void *address)
-// {
-//   struct page p;
-//   struct hash_elem *e;
-
-//   p.addr = address;
-//   e = hash_find (&pages, &p.hash_elem);
-//   return e != NULL ? hash_entry (e, struct page, hash_elem) : NULL;
-// }
-
 
