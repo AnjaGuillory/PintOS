@@ -22,6 +22,7 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 
 static struct frame_entry *frame_table[TABLE_SIZE];	/* Frame table */
 static int frame_pointer;				/* Frame pointer for clock algorithm */
@@ -31,7 +32,9 @@ static struct lock Lock;				/* Lock synchronize frame table operations*/
 
 void 
 frametable_init (){
+  lock_init(&Lock);
   frame_pointer = 0;
+
   unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++) {
     frame_table[i] = (struct frame_entry *) malloc (sizeof (struct frame_entry));
@@ -48,13 +51,13 @@ each page ends so that is doesn't access another process' frame?*/
 /*Most likely will need hash table to map memory */
 
 /*This part MUST be synchronized */
-void 
+void *
 frame_put (void * kpage, size_t page_cnt){
+  lock_acquire(&Lock);
   bool success = 0;
 
   unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++) {
-     lock_acquire(&Lock);
     /*Reset success to 0 to record success for every page
       This way, if there is at least one failure, the allocation will fail*/
     success = 0;
@@ -62,36 +65,40 @@ frame_put (void * kpage, size_t page_cnt){
      this way we don't auto-overwrite */
    /*Also need to check if the address goes over MM*/
     while(kpage != NULL) {
-	kpage += PG_SIZE;
+     kpage += PG_SIZE;
     }
     struct frame_entry *entry = frame_table[i];
+    
     if(entry->isAllocated == 0) {
       entry->addr = kpage;
-      /*If there is more than one page to allocate
-	Set up another address for the next page*/
-      if(page_cnt > 1)
-      {
-	kpage += PG_SIZE;
-        page_cnt--; 
-      }
+      page_cnt--; 
       entry->frame_num = (uint32_t) kpage & 0xFF400000;
       entry->offset = (uint32_t) kpage & 0x000FFFFF;
       entry->isAllocated = 1;
+
+      //struct page_
       //entry->pagedIn = 1;
       entry->clockbit = 1;
+      //pagedir_is_accessed (cur->pagedir, kpage);
 
+      /*If there is more than one page to allocate
+  Set up another address for the next page*/
+      if(page_cnt > 1)
+      {
+        kpage += PG_SIZE;
+      }
       success = 1;
 
       /*when we're done, break*/
       if(page_cnt == 0)
-	break;
+        break;
     }
    else {
      /*If the current frame we are accessing
        is unavailable and there are still more frames,
        Keep looking and checking them*/
      if(page_cnt > 1)
-	kpage += PG_SIZE;
+	     kpage += PG_SIZE;
    }
    
   }
@@ -100,9 +107,11 @@ frame_put (void * kpage, size_t page_cnt){
     /*Call the eviction policy*/
     lock_release(&Lock);
     frame_evict(kpage, page_cnt);
+    return kpage;
     PANIC ("RAN OUT OF FRAME PAGES");
   }
   lock_release(&Lock);
+  return kpage;
 }
 
 void frame_evict(void * kpage, size_t page_cnt){
@@ -113,11 +122,14 @@ void frame_evict(void * kpage, size_t page_cnt){
   // when we find clockbit == 0, evict that frame,
   // replace the page in the frame, and set clock bit to 1,
   // then place the pointer after that frame
+  lock_acquire(&Lock);
+
+  //int accessed = hash_entry(thread_current()->page_table, page, page);
+
 
   unsigned int i;
   for (i = frame_pointer; i < TABLE_SIZE; i++){
     struct frame_entry *entry = frame_table[i];
-    lock_acquire(&Lock);
     if (entry->clockbit == 0)
     {
       frame_clean(i);
@@ -131,7 +143,8 @@ void frame_evict(void * kpage, size_t page_cnt){
     else
       entry->clockbit = 0;
   }
-    lock_release(&Lock);
+  
+  lock_release(&Lock);
 
 }
 

@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "lib/kernel/hash.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -115,8 +116,9 @@ struct thread
     struct semaphore exiting;
     int child_exit;                      /* Pointer to eax */
     bool isWaited;                       /* Flag that indicates if the thread is being waited on by the parent */
-    struct file *self;                  /* the thread's executable */
-    struct file *files[128];            /* An array of the thread's files */
+    struct file *self;                   /* the thread's executable */
+    struct file *files[128];             /* An array of the thread's files */
+    struct hash page_table;             /* Supplemental page table */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -125,6 +127,7 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
   };
 
 /* If false (default), use round-robin scheduler.

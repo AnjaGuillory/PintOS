@@ -19,6 +19,9 @@
 #include "threads/vaddr.h"
 #include "kernel/list.h"
 #include "threads/synch.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+#include "threads/malloc.h"
 
 /*Driver: Anja*/
 
@@ -70,7 +73,8 @@ start_process (void *file_name_)
 
   token = strtok_r(str1, " ", &saveptr1);
 
-  //printf("FILENAME in start %s\n", file_name);
+  supplemental_init ();
+
   struct intr_frame if_;
   bool success;
 
@@ -247,6 +251,7 @@ process_activate (void)
 
   /* Activate thread's page tables. */
   pagedir_activate (t->pagedir);
+  //supplemental_init(t->page_table);
 
   /* Set thread's kernel stack for use in processing
      interrupts. */
@@ -344,6 +349,7 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
+
   process_activate ();
 
   lock_acquire(&Lock);
@@ -445,10 +451,7 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   
-  //printf("about to sema up\n");
   sema_up(&(t->parent)->complete);
-  thread_yield();
-  //printf("im back from thread_yield() %s\n", t->name);
   
   return success;
 }
@@ -546,6 +549,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
+
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
@@ -572,7 +576,14 @@ setup_stack (char *file_name, void **esp)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+
+      void * upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+      success = install_page (upage, kpage, true);
+
+      /* It is a stack page */
+      struct page *p = page_lookup (upage, false);
+      p->isStack = 1;
+      
       if (success)
         *esp = PHYS_BASE;
       else
@@ -600,8 +611,18 @@ install_page (void *upage, void *kpage, bool writable)
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
+  bool flag = (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+
+  if(flag){
+    flag = page_insert(upage, kpage);
+  }
+  else {
+    frame_clean(frame_find_kpage(kpage));
+  }
+
+  return flag;
+
 }
 
 

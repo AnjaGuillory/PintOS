@@ -5,6 +5,7 @@
 #include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -90,7 +91,7 @@ kill (struct intr_frame *f)
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
-      thread_exit (); 
+      exit (-1); 
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.
@@ -105,7 +106,7 @@ kill (struct intr_frame *f)
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
-      thread_exit ();
+      exit (-1);
     }
 }
 
@@ -149,6 +150,30 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  if (user && not_present) {
+    // look up information that page needs
+    // then allocate new page
+    // then put or update in the supplemental page table
+    // load the correct contents of the page
+    // set the page in the page directory
+
+    /* Checks if buffer doesn't have anything in it */
+    if (fault_addr == NULL)
+      kill(f);
+
+    struct page *p = page_lookup (fault_addr, false);
+
+    if(p == NULL) {
+      void * kpage = frame_put(fault_addr, 1);
+
+      page_insert(fault_addr, kpage);
+      // page_load();
+      pagedir_set_page (thread_current()->pagedir, fault_addr, kpage, write);
+      return;
+    }
+
+  }
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
@@ -159,7 +184,7 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
 
   printf("There is no crying in Pintos!\n");
-  exit(-1);
+  kill (f);
 
 }
 
