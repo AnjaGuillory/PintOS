@@ -48,7 +48,7 @@ struct block
 // when a process is terminated, then add the sector to the freelist
 // when we want to put the page back in a frame, use block_read
 
-static struct swap_frame * swap_table[8192];
+static struct swap_frame * swap_table[SWAP_SIZE];
 struct block * b;
 
 
@@ -57,22 +57,24 @@ struct block * b;
 void 
 swap_init ()
 {
-	b = block_get_role (BLOCK_SWAP);
   unsigned int i;
-  for(i = 0; i < b->size; i++)
-  	swap_nullify (i);
+  for(i = 0; i < SWAP_SIZE; i++) {
+    swap_table[i] = (struct swap_frame *) malloc (sizeof (struct swap_frame));
+    swap_nullify (i);
+  }
 }
 
 bool 
 swap_write (void *kpage)
 {
+  b = block_get_role (BLOCK_SWAP);
 
 	if (b == NULL)
 		return false;
 
 	block_sector_t sector_num = swap_get_free ();
 
-	if (sector_num == b->size + 1)
+	if (sector_num == SWAP_SIZE + 1)
 		PANIC ("No free sectors!");
 
 	else
@@ -93,10 +95,14 @@ swap_write (void *kpage)
 bool 
 swap_read (void *kpage)
 {
+  b = block_get_role (BLOCK_SWAP);
+
+  if (b == NULL)
+    return false;
 
 	block_sector_t sector_num = swap_find_sector (kpage);
 
-	if (sector_num == b->size + 1)
+	if (sector_num == SWAP_SIZE + 1)
 		return false;
 
 	else 
@@ -113,24 +119,24 @@ swap_get_free ()
 {
 	unsigned int i;
 
-	for (i = 0; i < b->size; i++){
+	for (i = 0; i < SWAP_SIZE; i++){
 		if (swap_table[i]->inUse == 0)
 			return i;
 	}
 
-	return b->size + 1;
+	return SWAP_SIZE + 1;
 }
 
 block_sector_t 
 swap_find_sector (void * kpage)
 {
 	unsigned int i;
-	for (i = 0; i < b->size; i++){
+	for (i = 0; i < SWAP_SIZE; i++){
 		if (swap_table[i]->kpage == kpage)
 			return i;
 	}
 
-	return b->size + 1;
+	return SWAP_SIZE + 1;
 }
 
 void 

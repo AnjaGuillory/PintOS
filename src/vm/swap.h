@@ -3,6 +3,8 @@
 
 #include "devices/block.h"
 
+#define SWAP_SIZE 8192
+
 struct swap_frame {
   int inUse;	/* Is this swap in use? */
   void * kpage; /* Address of the evicted process's page */

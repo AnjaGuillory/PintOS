@@ -336,7 +336,6 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, const char *command, void (**eip) (void), void **esp) 
 {
-
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -541,6 +540,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       // if page fault (exception.c) , do all of this.
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
+      //printf("hey %p kpage %p\n", upage, kpage);
       if (kpage == NULL)
         return false;
 
