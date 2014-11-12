@@ -15,7 +15,7 @@ struct frame_entry{			/* Entry struct to put in the frame atable array */
 };
 
 void frametable_init (void);
-void * frame_put (void *, size_t);
+void frame_put (void *, size_t);
 void frame_evict (void * , size_t);
 int frame_find_kpage (void *);
 void frame_clean(int);

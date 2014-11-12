@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include "userprog/gdt.h"
 #include "userprog/syscall.h"
+#include "userprog/pagedir.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/palloc.h"
 #include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "vm/page.h"
@@ -167,7 +169,7 @@ page_fault (struct intr_frame *f)
     struct page *p = page_lookup (fault_addr, false);
 
     if(p == NULL) {
-      void * kpage = frame_put(fault_addr, 1);
+      void * kpage = palloc_get_page(PAL_USER);
 
       page_insert(fault_addr, kpage);
       // page_load();

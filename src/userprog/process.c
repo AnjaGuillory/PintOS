@@ -21,6 +21,7 @@
 #include "threads/synch.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include "threads/malloc.h"
 
 /*Driver: Anja*/

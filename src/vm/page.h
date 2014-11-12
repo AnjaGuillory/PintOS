@@ -2,6 +2,7 @@
 #define VM_PAGE_H
 
 #include "lib/kernel/hash.h"
+#include "devices/block.h"
 
 struct page
 {
@@ -9,7 +10,7 @@ struct page
     void * upage;                   /* User address. */
     void * kpage;                   /* Kernel addresss */
     bool swappedIn;                 /* Indicate if in swap space */
-    void * whereSwap;               /* Where in swap is it located */
+    block_sector_t whereSwap;               /* Where in swap is it located */
     char * infoPage;                /* Where is the infor for the page stored */
     int indexFrame;                 /* Which frame is it using */
     bool isStack;                   /* Is it a stack page */

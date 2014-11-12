@@ -23,6 +23,7 @@
 #include "threads/malloc.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "vm/swap.h"
 
 static struct frame_entry *frame_table[TABLE_SIZE];	/* Frame table */
 static int frame_pointer;				/* Frame pointer for clock algorithm */
@@ -31,7 +32,11 @@ static struct lock Lock;				/* Lock synchronize frame table operations*/
 
 
 void 
-frametable_init (){
+frametable_init ()
+{
+  /* Initialize Swap Table */
+  swap_init ();
+
   lock_init(&Lock);
   frame_pointer = 0;
 
@@ -51,7 +56,7 @@ each page ends so that is doesn't access another process' frame?*/
 /*Most likely will need hash table to map memory */
 
 /*This part MUST be synchronized */
-void *
+void
 frame_put (void * kpage, size_t page_cnt){
   lock_acquire(&Lock);
   bool success = 0;
@@ -107,11 +112,12 @@ frame_put (void * kpage, size_t page_cnt){
     /*Call the eviction policy*/
     lock_release(&Lock);
     frame_evict(kpage, page_cnt);
-    return kpage;
-    PANIC ("RAN OUT OF FRAME PAGES");
+    // return kpage;
+    // PANIC ("RAN OUT OF FRAME PAGES");
   }
-  lock_release(&Lock);
-  return kpage;
+  else
+    lock_release(&Lock);
+  //return kpage;
 }
 
 void frame_evict(void * kpage, size_t page_cnt){
@@ -132,6 +138,12 @@ void frame_evict(void * kpage, size_t page_cnt){
     struct frame_entry *entry = frame_table[i];
     if (entry->clockbit == 0)
     {
+      uint32_t * activepd = active_pd();
+      if(pagedir_is_dirty(activepd, entry->addr))
+      {
+        bool swap = swap_write(entry->addr);
+      }
+
       frame_clean(i);
       frame_put(kpage, page_cnt);
       if (i == TABLE_SIZE - 1)
