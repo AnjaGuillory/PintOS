@@ -24,6 +24,7 @@
 #include "threads/malloc.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "vm/swap.h"
 #include "lib/kernel/hash.h"
     
 
@@ -52,13 +53,28 @@ void supplemental_init() {
 
 bool page_insert (void *upage, void * kpage)
 {
-  struct thread *cur = thread_current();
-  struct page *p = (struct page *) malloc (sizeof (struct page));
+  struct page *p;
+
+  if ((p = page_lookup (upage, false)) != NULL)
+    page_update (p, kpage);
+
+  p = (struct page *) malloc (sizeof (struct page));
 
   p->upage = upage;
   p->kpage = kpage;
+  p->isStack = 0;
 
-  if (hash_insert (&(cur->page_table), &p->hash_elem) == NULL)
+  if (hash_insert (&(thread_current()->page_table), &p->hash_elem) == NULL)
+    return true;
+
+  return false;
+}
+
+bool page_update (struct page *p, void *kpage) {
+  
+  p->kpage = kpage;
+
+  if (hash_replace (&(thread_current()->page_table), &p->hash_elem) != NULL)
     return true;
 
   return false;
@@ -70,6 +86,43 @@ bool page_delete (void * kpage)
 
   if (hash_delete (&(thread_current()->page_table), &p->hash_elem) == NULL)
     return false;
+
+  return true;
+}
+
+bool
+page_load (struct page *p, void *kpage)
+{
+  if (p->page == PAGE_FILESYS) {
+    if (p->isZero == true) {
+      memset (kpage, 0, PGSIZE);
+
+      p->zero_bytes -= PGSIZE;
+    }
+    else {
+      if (p->read_bytes > 0 || p->zero_bytes > 0) {
+        size_t page_read_bytes = p->read_bytes < PGSIZE ? p->read_bytes : PGSIZE;
+        size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+        p->read_bytes -= page_read_bytes;
+        p->zero_bytes -= page_zero_bytes;
+
+        //file_seek (p->file, p->ofs);
+
+        /* Load this page. */
+        if (file_read (p->file, kpage, page_read_bytes) != (int) page_read_bytes)
+          {
+            palloc_free_page (kpage);
+            return false; 
+          }
+        memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      }
+    }
+  }
+  else if (p->page == PAGE_SWAP) {
+    if (swap_read (kpage) == false)
+      return false;
+  }
 
   return true;
 }

@@ -84,7 +84,7 @@ swap_write (void *kpage)
 		swap_table[sector_num]->kpage = kpage;
 
 		struct page *p = page_lookup (kpage, 1);
-		p->swappedIn = 1;
+		p->page = PAGE_SWAP;
 		p->whereSwap = sector_num;
 	}
 
