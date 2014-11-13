@@ -27,6 +27,7 @@ struct page
     uint32_t zero_bytes;            /* Hown many bytes zeroed */
     struct file *file;              /* Which file, if any */
     off_t ofs;                      /* Offset in the file */
+    bool writable;
 };
 
 void supplemental_init(void);

@@ -143,7 +143,6 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
-  printf("in page fault %p\n", fault_addr);
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -158,45 +157,28 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   if (user && not_present) {
-    // look up information that page needs
-    // then allocate new page
-    // then put or update in the supplemental page table
-    // load the correct contents of the page
-    // set the page in the page directory
 
     /* Checks if buffer doesn't have anything in it */
-    if (fault_addr == NULL)
+    if (fault_addr == NULL) {
+        printf("hey!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+      
       kill(f);
+    }
 
     fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
 
     struct page *p = page_lookup (fault_addr, false);
 
     if(p == NULL || p->kpage == NULL) {
-      /*if(p == NULL) {
-        p = (struct page *) malloc (sizeof (struct page));
-        p->upage = fault_addr;
-      }*/
       void * kpage = palloc_get_page(PAL_USER);
-      printf("kpage %p upage %p\n", kpage, fault_addr);
 
-      if (page_load (p, kpage) == false)  {
-        printf("going to die\n");
+      if (page_load (p, kpage) == false) {
         kill (f);
       }
 
       page_insert(fault_addr, kpage);
-      bool flag = pagedir_set_page (active_pd(), fault_addr, kpage, write);
-      printf("flag for pagedir %d\n", flag);
-
-      printf("going to return\n");
-      struct page *p = page_lookup (fault_addr, false);
-      printf("p upage %p, p kpage %p after mapping\n", p->upage, p->kpage);
-
-      printf("doing lookup_page in page_dir %p\n", lookup_page (active_pd(), fault_addr, 0));
-
+      pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
       return;
-      printf("its after the retrun\n");
     }
 
   }

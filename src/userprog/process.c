@@ -528,67 +528,44 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   file_seek (file, ofs);
+  
   bool success = 0;
 
-  struct page *p = (struct page *) malloc (sizeof (struct page));
+  while (read_bytes > 0 || zero_bytes > 0) 
+    {
 
-  p->upage = upage;
-  p->page = PAGE_FILESYS;
-  p->file = file;
-
-  if (zero_bytes == PGSIZE)
-    p->isZero = true;
-  else
-    p->isZero = false;
-  
-  p->read_bytes = read_bytes;
-  p->zero_bytes = zero_bytes;
-
-  printf("upage %p, p upage %p\n", upage, p->upage);
-  success = page_insert (upage, NULL);
-
-  /*if( read_bytes-PGSIZE > PGSIZE || zero_bytes-PGSIZE > PGSIZE) {
-    printf("in if\n");
-    success = page_insert (upage + PGSIZE, NULL);
-  }*/
-
-  /*while (read_bytes > 0 || zero_bytes > 0) 
-    {*/
+      //printf("upage %p\n", upage);
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
-      /*size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;*/
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      // for demand page, don't do any of these yet, create supplemental page
-      // if page fault (exception.c) , do all of this.
-      /* Get a page of memory. */
-      /*uint8_t *kpage = palloc_get_page (PAL_USER);
-      printf("hey %p kpage %p\n", upage, kpage);
-      if (kpage == NULL)
-        return false;*/
+      success = page_insert (upage, NULL);
 
-      /* Load this page. */
-      /*if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);*/
+      struct page *p = page_lookup(upage, false);
 
 
-      /* Add the page to the process's address space. */
-      /*if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }*/
+      p->page = PAGE_FILESYS;
+      p->file = file;
+      p->ofs = ofs;
+      p->writable = writable;
+
+      if (zero_bytes == PGSIZE)
+        p->isZero = true;
+      else
+        p->isZero = false;
+      
+      p->read_bytes = page_read_bytes;
+      p->zero_bytes = page_zero_bytes;
 
       /* Advance. */
-      /*read_bytes -= page_read_bytes;
+      read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
-    }*/
+      ofs += page_read_bytes;
+    }
+
   return success;
 }
 
@@ -609,7 +586,7 @@ setup_stack (char *file_name, void **esp)
       
       if (success) {
         *esp = PHYS_BASE;
-        
+
         /* It is a stack page */
         struct page *p = page_lookup (upage, false);
         p->isStack = 1;

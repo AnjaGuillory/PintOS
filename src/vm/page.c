@@ -26,7 +26,6 @@
 #include "vm/page.h"
 #include "vm/swap.h"
 #include "lib/kernel/hash.h"
-    
 
 /* Returns a hash value for page p. */
 unsigned
@@ -101,21 +100,15 @@ page_load (struct page *p, void *kpage)
     }
     else {
       if (p->read_bytes > 0 || p->zero_bytes > 0) {
-        size_t page_read_bytes = p->read_bytes < PGSIZE ? p->read_bytes : PGSIZE;
-        size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-        p->read_bytes -= page_read_bytes;
-        p->zero_bytes -= page_zero_bytes;
-
-        //file_seek (p->file, p->ofs);
+        file_seek (p->file, p->ofs);
 
         /* Load this page. */
-        if (file_read (p->file, kpage, page_read_bytes) != (int) page_read_bytes)
+        if (file_read (p->file, kpage, p->read_bytes) != (int) p->read_bytes)
           {
             palloc_free_page (kpage);
             return false; 
           }
-        memset (kpage + page_read_bytes, 0, page_zero_bytes);
+        memset (kpage + p->read_bytes, 0, p->zero_bytes);
       }
     }
   }
