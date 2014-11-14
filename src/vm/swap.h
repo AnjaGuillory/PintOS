@@ -17,7 +17,7 @@ bool swap_write (void *kpage);
 bool swap_read (void *kpage);
 block_sector_t swap_get_free (void);
 block_sector_t swap_find_sector (void *kpage);
-void swap_nullify (int index);
+void swap_nullify (block_sector_t index);
 
 
 #endif /* vm/swap.h */

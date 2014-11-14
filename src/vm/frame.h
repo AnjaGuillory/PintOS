@@ -12,12 +12,15 @@ struct frame_entry{			/* Entry struct to put in the frame atable array */
   uint32_t offset;			/* Offset */
   bool isAllocated;			/* Indicate if already in use */
   int clockbit;	     		/* Clock bit for clock algorithm */
+  bool isStack;             /* Is this a stack page? */
 };
 
 void frametable_init (void);
-void frame_put (void *, size_t);
-void frame_evict (void * , size_t);
+void frame_put (void *);
+void frame_evict (void *);
 int frame_find_kpage (void *);
 void frame_clean(int);
 void frame_null (struct frame_entry *);
+void frame_stack (bool , void *);
+
 #endif

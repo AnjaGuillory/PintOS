@@ -283,7 +283,9 @@ int open (const char *file)  {
   struct thread *cur = thread_current();
 
   if(checkPointer (file) == -1)
+  {
     exit(-1);
+  }
 
   lock_acquire (&Lock);
   
@@ -417,7 +419,10 @@ int read (int fd, void *buffer, unsigned size)
 
   /* Checks buffer for a bad pointer */
   if(checkPointer (buffer) == -1)
+  {
+
     exit(-1);
+  }
   
   /* Checks if getting input */
   if (fd == 0)
@@ -439,6 +444,7 @@ int read (int fd, void *buffer, unsigned size)
     if(fil == NULL){
       exit(-1);
     }
+
 
     /* Writes to the file and puts number of written characters */
     charsRead = file_read (fil, (char *) buffer, size); 
@@ -513,6 +519,7 @@ int wait (pid_t pid) {
 
 int checkPointer (const void * buffer)
 {
+
   uint32_t *activepd = active_pd ();
 
   /* Checks if buffer doesn't have anything in it */
@@ -522,13 +529,16 @@ int checkPointer (const void * buffer)
   /* Checks if pointer is in user space */
   else if (!is_kernel_vaddr (buffer)) {
     /* Checks if the pointer is mapped */
-    if(pagedir_get_page (activepd, buffer) == NULL|| lookup_page (activepd, buffer, 0) == NULL)
+    if(pagedir_get_page (activepd, buffer) == NULL || lookup_page (activepd, buffer, 0) == NULL) {
+
       exit (-1);
+    }
   }
 
   /* Checks if the pointer is in kernel address space */
-  else if (is_kernel_vaddr (buffer))
+  else if (is_kernel_vaddr (buffer)){
     exit (-1);
+  }
 
   /* Return successful otherwise */
   return 0;

@@ -159,9 +159,7 @@ page_fault (struct intr_frame *f)
   if (user && not_present) {
 
     /* Checks if buffer doesn't have anything in it */
-    if (fault_addr == NULL) {
-        printf("hey!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-      
+    if (fault_addr == NULL) {      
       kill(f);
     }
 
@@ -171,6 +169,7 @@ page_fault (struct intr_frame *f)
 
     if(p == NULL || p->kpage == NULL) {
       void * kpage = palloc_get_page(PAL_USER);
+      frame_stack (p->isStack, kpage);
 
       if (page_load (p, kpage) == false) {
         kill (f);

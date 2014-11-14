@@ -221,6 +221,9 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
+  /* Destroy hash table for dying thread */
+  page_destroy ();
+
   struct thread *parent = cur->parent;
   struct list children_list = parent->children;
 

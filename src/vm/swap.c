@@ -140,7 +140,7 @@ swap_find_sector (void * kpage)
 }
 
 void 
-swap_nullify (int index)
+swap_nullify (block_sector_t index)
 {
 	swap_table[index]->inUse = 0;
 	swap_table[index]->kpage = NULL;

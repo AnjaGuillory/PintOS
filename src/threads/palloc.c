@@ -11,6 +11,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -92,7 +94,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
       if (flags & PAL_USER) {
-        frame_put (pages, page_cnt);
+        frame_put (pages);
       }
     }
   else 
@@ -130,8 +132,22 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
   if (page_from_pool (&kernel_pool, pages))
     pool = &kernel_pool;
-  else if (page_from_pool (&user_pool, pages))
+  else if (page_from_pool (&user_pool, pages)) 
+  {
     pool = &user_pool;
+
+    /* Deleting page from frame_table, swap, and page_table */
+
+    int frame_index = frame_find_kpage (pages);
+    block_sector_t swap_index = swap_find_sector (pages);
+    
+    if (frame_index != -1)
+      frame_clean (frame_index);
+    else if (swap_index != SWAP_SIZE + 1)
+      swap_nullify (swap_index);
+
+    page_delete (pages);
+  }
   else
     NOT_REACHED ();
 

@@ -37,6 +37,7 @@ bool page_delete (void *);
 struct page * page_lookup (void *, bool);
 unsigned page_hash (const struct hash_elem *, void *);
 bool page_load (struct page *, void *);
+void page_destroy (void);
 bool page_less (const struct hash_elem *, const struct hash_elem *,
            void *);
 

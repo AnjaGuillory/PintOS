@@ -125,16 +125,44 @@ page_load (struct page *p, void *kpage)
 struct page *
 page_lookup (void * addr, bool kpage)
 {
-  struct page *p = (struct page *) malloc (sizeof (struct page *));
-  struct hash_elem *e;
+  struct hash_iterator i;
 
-  if(kpage) 
-     /* For kpage */
-    p->kpage = addr;
-  else
-    /* For upage */
-    p->upage = addr;
+  hash_first (&i, &(thread_current()->page_table));
+  while (hash_next (&i))
+  {
+    struct page *p = hash_entry (hash_cur (&i), struct page, hash_elem);
+    
+    if (kpage) {
+      if (p->kpage == addr)
+        return p;
+    }
+    else {
+      if (p->upage == addr)
+        return p;
+    }
+  }
 
-  e = hash_find (&(thread_current()->page_table), &p->hash_elem);
-  return e != NULL ? hash_entry (e, struct page, hash_elem) : NULL;
+  return NULL;
 }
+
+void 
+page_destroy () 
+{
+  hash_destroy (&(thread_current()->page_table), &(page_hash));
+}
+
+// void 
+// page_find () {
+//   struct page *p = (struct page *) malloc (sizeof (struct page *));
+//   struct hash_elem *e;
+
+//   if(kpage) 
+//      /* For kpage */
+//     p->kpage = addr;
+//   else
+//     /* For upage */
+//     p->upage = addr;
+
+//   e = hash_find (&(thread_current()->page_table), &p->hash_elem);
+//   return e != NULL ? hash_entry (e, struct page, hash_elem) : NULL;
+// }
