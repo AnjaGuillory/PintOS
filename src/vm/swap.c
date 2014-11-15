@@ -71,36 +71,35 @@ swap_write (void *kpage)
 
   b = block_get_role (BLOCK_SWAP);
 
-	if (b == NULL)
-		return false;
+  if (b == NULL)
+    return false;
 
-	block_sector_t sector_num = swap_get_free ();
+  block_sector_t sector_num = swap_get_free ();
 
-	if (sector_num == SWAP_SIZE + 1)
-		PANIC ("No free sectors!");
-	else
-	{
-		struct page *p = page_lookup (kpage, 1);
-    printf("putting into swap: %p    %d\n", p->upage, sector_num);
+  if (sector_num == SWAP_SIZE + 1)
+    PANIC ("No free sectors!");
+  else
+  {
+    struct page *p = page_lookup (kpage, 1);
 
     p->page = PAGE_SWAP;
-    //p->kpage = NULL;
     p->whereSwap = sector_num;
-    int page_size = 4096;
+    
+    int page_size = 0;
 
-    while (page_size > 0) {
-      block_write (b, sector_num, kpage);
-      page_size -= BLOCK_SECTOR_SIZE;
-    swap_table[sector_num]->inUse = 1;
-    swap_table[sector_num]->kpage = kpage;
+    while (page_size < 4096) {
+      block_write (b, sector_num, kpage + page_size);
+      
+      swap_table[sector_num]->inUse = 1;
+      swap_table[sector_num]->kpage = kpage;
+      
+      page_size += BLOCK_SECTOR_SIZE;
       sector_num++;
+
     }
+  }
 
-    hex_dump (kpage, kpage, 1024, true);
-
-	}
-
-	return true;
+  return true;
 
 }
 
@@ -112,27 +111,23 @@ swap_read (void *kpage)
   if (b == NULL)
     return false;
 
-	block_sector_t sector_num = swap_find_sector (kpage);
-  printf("block sector returned %d, blcok return from p->whereSwap \n", sector_num);//, page_lookup(kpage, true)->whereSwap);
-
-  //hex_dump (kpage, kpage, 64, true);
+  block_sector_t sector_num = swap_find_sector (kpage);
 
   if (sector_num == SWAP_SIZE + 1)
     return false;
 
   else 
   {
-    int page_size = 4096;
+    int page_size = 0; 
 
-    while (page_size > 0) {
-      block_read (b, sector_num, kpage);
-      page_size -= BLOCK_SECTOR_SIZE;
-		swap_nullify (sector_num);
+    while (page_size < 4096) {
+      block_read (b, sector_num, (uint32_t) kpage+ page_size);
+
+      swap_nullify (sector_num);
+      
+      page_size += BLOCK_SECTOR_SIZE;
       sector_num++;
     }
-  
-
-  hex_dump (kpage, kpage, 1024, true);
 	}
 
 	return true;
