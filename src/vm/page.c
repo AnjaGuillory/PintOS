@@ -114,8 +114,11 @@ page_load (struct page *p, void *kpage)
     }
   }
   else if (p->page == PAGE_SWAP) {
-    if (swap_read (p->whereSwap, kpage) == false)
+    printf("We see that the page is a swapped page\n");
+    bool readingIn = swap_read (p->whereSwap, kpage);
+    if (readingIn == false)
       return false;
+    printf("Reading in a swapped page\n");
   }
   return true;
 }

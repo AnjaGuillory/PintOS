@@ -13,6 +13,7 @@
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
+#include "userprog/pagedir.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -73,6 +74,8 @@ palloc_init (size_t user_page_limit)
 void *
 palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 {
+  printf("pallocing\n\n");
+
   struct pool *pool = flags & PAL_USER ? &user_pool : &kernel_pool;
   void *pages;
   size_t page_idx;
@@ -89,17 +92,29 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   else {
     if (flags & PAL_USER)
     {
-      // printf("EVICTED KPAGE: %p\n", getFrameEntry()->addr);
-      palloc_free_page(getFrameEntry()->addr);
+      frame_evict();
+
       lock_acquire (&pool->lock);
       page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
       lock_release (&pool->lock);
+
       pages = pool->base + PGSIZE * page_idx;
+
+      //frame_put(pages);
+      printf("returning from evicting a page and putting new one\n");
+
+      // printf("EVICTED KPAGE: %p\n", getFrameEntry()->addr);
+      /*palloc_free_page(getFrameEntry()->addr);
+      lock_acquire (&pool->lock);
+      page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+      lock_release (&pool->lock);
+      pages = pool->base + PGSIZE * page_idx;*/
     }
     else
       pages = NULL;
   }
 
+  printf("got page %p\n", pages);
   //printf("pages from palloc %p\n", pool->base + PGSIZE * page_idx);
 
   if (pages != NULL) 
@@ -148,6 +163,8 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     pool = &kernel_pool;
   else if (page_from_pool (&user_pool, pages)) 
   {
+    printf("freeing user page\n");
+
     pool = &user_pool;
 
     /* Deleting page from frame_table, swap, and page_table */

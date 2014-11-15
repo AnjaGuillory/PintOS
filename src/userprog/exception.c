@@ -162,6 +162,7 @@ page_fault (struct intr_frame *f)
 
 
   if (!not_present) {
+    printf("fault addr %p\n", fault_addr);
     debug_backtrace();
     PANIC ("i died");
   }
@@ -179,7 +180,7 @@ page_fault (struct intr_frame *f)
     //printf("p->upage %p\n", p->upage);
     if (p == NULL) {
         //sPANIC("I SHOULD NOT BE NULL");
-
+        printf("fault_addr %p\n", fault_addr);
         printf("p is null\n");
       if (fault_addr < f->esp) {
         printf("faulat addr < esp\n");
@@ -195,13 +196,15 @@ page_fault (struct intr_frame *f)
         p->isZero = true;
         p->read_bytes = PGSIZE;
       }
+      else if (fault_addr > f->esp && fault_addr > PHYS_BASE)
+        printf("hey\n");
     }
 
     if(p->kpage == NULL) {
       //printf("hey\n");
       void * kpage = palloc_get_page(PAL_USER);
 
-      //printf("kpage %p fault_addr %p\n", kpage, fault_addr);
+      printf("kpage %p fault_addr %p\n", kpage, fault_addr);
 
       if (kpage == NULL)
         printf("heyasdjfklsjfwsiefojwed\n");
@@ -215,7 +218,7 @@ page_fault (struct intr_frame *f)
 
       page_insert(fault_addr, kpage);
       pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
-     // printf("going to return\n");
+      printf("going to return\n");
       return;
     }
     

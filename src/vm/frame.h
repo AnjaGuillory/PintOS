@@ -3,7 +3,7 @@
 
 #include "threads/loader.h"
 
-#define TABLE_SIZE (uint32_t) 380	/* Size of frame table */
+#define TABLE_SIZE (uint32_t) 1024	/* Size of frame table */
 #define PG_SIZE (uint32_t) 4096 	/* Get rid of undeclared PG_SIZE error*/
 
 struct frame_entry{			/* Entry struct to put in the frame atable array */
@@ -18,7 +18,7 @@ struct frame_entry{			/* Entry struct to put in the frame atable array */
 struct frame_entry *getFrameEntry (void);
 void frametable_init (void);
 void frame_put (void *);
-void frame_evict (void *);
+void frame_evict (void);
 int frame_find_kpage (void *);
 void frame_clean(int);
 void frame_null (struct frame_entry *);
