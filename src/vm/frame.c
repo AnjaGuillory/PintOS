@@ -123,15 +123,15 @@ void frame_evict(){
     struct frame_entry *entry = frame_table[i];
     if (entry->clockbit == 0 && entry->isAllocated == 1)
     {
-      printf("entry0 evicted %p\n", entry->addr);
+      //printf("entry0 evicted %p\n", entry->addr);
       uint32_t * activepd = active_pd();
 
 
       if(entry->isStack == true || pagedir_is_dirty(activepd, entry->addr))
       {
-        printf("going to swap write with %p\n", entry->addr);
-        hex_dump(entry->addr, entry->addr, 64, true);
-        printf("\n");
+        //printf("going to swap write with %p\n", entry->addr);
+        //hex_dump(entry->addr, entry->addr, 64, true);
+        //printf("\n");
         swap_write(entry->addr);
       }
 
@@ -158,7 +158,7 @@ void frame_evict(){
     }
   }
   
-  printf("exiting frame evict\n");
+  //printf("exiting frame evict\n");
   lock_release(&Lock);
 
 }
@@ -192,7 +192,7 @@ void frame_null (struct frame_entry *entry){
 void frame_stack (bool isStack, void *kpage) {
 
   if (isStack) {
-  printf("in frame stack\n");
+  //printf("in frame stack\n");
     frame_table[frame_find_kpage (kpage)]->isStack = isStack;
   }
 }

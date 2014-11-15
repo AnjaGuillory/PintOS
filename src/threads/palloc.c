@@ -74,7 +74,7 @@ palloc_init (size_t user_page_limit)
 void *
 palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 {
-  printf("pallocing\n\n");
+  //printf("pallocing\n\n");
 
   struct pool *pool = flags & PAL_USER ? &user_pool : &kernel_pool;
   void *pages;
@@ -101,7 +101,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
       pages = pool->base + PGSIZE * page_idx;
 
       //frame_put(pages);
-      printf("returning from evicting a page and putting new one\n");
+      ///printf("returning from evicting a page and putting new one\n");
 
       // printf("EVICTED KPAGE: %p\n", getFrameEntry()->addr);
       /*palloc_free_page(getFrameEntry()->addr);
@@ -114,7 +114,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
       pages = NULL;
   }
 
-  printf("got page %p\n", pages);
+  //printf("got page %p\n", pages);
   //printf("pages from palloc %p\n", pool->base + PGSIZE * page_idx);
 
   if (pages != NULL) 
@@ -163,7 +163,7 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     pool = &kernel_pool;
   else if (page_from_pool (&user_pool, pages)) 
   {
-    printf("freeing user page\n");
+    //printf("freeing user page\n");
 
     pool = &user_pool;
 

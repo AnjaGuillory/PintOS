@@ -68,7 +68,7 @@ bool
 swap_write (void *kpage)
 {
 
-  printf("in swap write\n");
+  //printf("in swap write\n");
   b = block_get_role (BLOCK_SWAP);
 
   if (b == NULL)
@@ -83,11 +83,11 @@ swap_write (void *kpage)
     struct page *p = page_lookup (kpage, 1);
 
     p->page = PAGE_SWAP;
-    printf("Setting to page swap!!! \n");
+    //printf("Setting to page swap!!! \n");
     p->whereSwap = sector_num;
     
-  hex_dump(kpage, kpage, 64, true);
-  printf("\n");
+  //hex_dump(kpage, kpage, 64, true);
+  //printf("\n");
     int page_size = 0;
 
     while (page_size < PGSIZE) {
@@ -111,7 +111,7 @@ bool
 swap_read (block_sector_t sector_num, void *kpage)
 {
 
-  printf("in swap read\n");
+  //printf("in swap read\n");
   b = block_get_role (BLOCK_SWAP);
 
   if (b == NULL)
@@ -126,16 +126,16 @@ swap_read (block_sector_t sector_num, void *kpage)
 
     while (page_size < PGSIZE) {
       block_read (b, sector_num, (uint32_t) kpage + page_size);
-      printf("Block has been read in\n");
+      //printf("Block has been read in\n");
       swap_nullify (sector_num);
-      printf("Swap block was nullified in swap table\n");
+      //printf("Swap block was nullified in swap table\n");
       
       page_size += BLOCK_SECTOR_SIZE;
       sector_num++;
     }
   }
 
-  hex_dump(kpage, kpage, 64, true);
+  //hex_dump(kpage, kpage, 64, true);
 
 	return true;
 }

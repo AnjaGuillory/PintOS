@@ -272,7 +272,7 @@ bool create (const char *file, unsigned initial_size)
       exit(-1);
   
   int flag = filesys_create (file, initial_size);
-
+  printf("Hello\n");
   lock_release(&Lock);
   return flag;
 }

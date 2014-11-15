@@ -55,7 +55,10 @@ bool page_insert (void *upage, void * kpage)
   struct page *p;
 
   if ((p = page_lookup (upage, false)) != NULL)
+  {
     page_update (p, kpage);
+    return true;
+  }
 
   p = (struct page *) malloc (sizeof (struct page));
 
@@ -114,11 +117,11 @@ page_load (struct page *p, void *kpage)
     }
   }
   else if (p->page == PAGE_SWAP) {
-    printf("We see that the page is a swapped page\n");
+    //printf("We see that the page is a swapped page\n");
     bool readingIn = swap_read (p->whereSwap, kpage);
     if (readingIn == false)
       return false;
-    printf("Reading in a swapped page\n");
+    //printf("Reading in a swapped page\n");
   }
   return true;
 }

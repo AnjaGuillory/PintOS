@@ -21,6 +21,7 @@ struct page
     block_sector_t whereSwap;       /* Where in swap is it located */
     int indexFrame;                 /* Which frame is it using */
     bool isStack;                   /* Is it a stack page */
+    void * nextStack;               /* Next stack page */
     /* ...other members... */
     bool isZero;                    /* Should the page be zeroed */
     uint32_t read_bytes;            /* How many bytes need to be read */
