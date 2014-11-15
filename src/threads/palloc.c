@@ -86,14 +86,28 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 
   if (page_idx != BITMAP_ERROR)
     pages = pool->base + PGSIZE * page_idx;
-  else
-    pages = NULL;
+  else {
+    if (flags & PAL_USER)
+    {
+      // printf("EVICTED KPAGE: %p\n", getFrameEntry()->addr);
+      palloc_free_page(getFrameEntry()->addr);
+      lock_acquire (&pool->lock);
+      page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+      lock_release (&pool->lock);
+      pages = pool->base + PGSIZE * page_idx;
+    }
+    else
+      pages = NULL;
+  }
+
+  //printf("pages from palloc %p\n", pool->base + PGSIZE * page_idx);
 
   if (pages != NULL) 
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
       if (flags & PAL_USER) {
+        //printf("allocating to user pool \n");
         frame_put (pages);
       }
     }
@@ -146,7 +160,16 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     else if (swap_index != SWAP_SIZE + 1)
       swap_nullify (swap_index);
 
-    page_delete (pages);
+    struct page *p = page_lookup (pages, true);
+    pagedir_clear_page(active_pd(), p->upage);
+
+    p->kpage = NULL;
+
+    //p = page_lookup (pages, true);
+    
+
+    //printf("p->kpage %p is it in swap %d\n", p->upage, p->page);
+    // page_delete (pages);
   }
   else
     NOT_REACHED ();

@@ -67,6 +67,8 @@ swap_init ()
 bool 
 swap_write (void *kpage)
 {
+  printf("in swap write\n");
+
   b = block_get_role (BLOCK_SWAP);
 
 	if (b == NULL)
@@ -76,16 +78,26 @@ swap_write (void *kpage)
 
 	if (sector_num == SWAP_SIZE + 1)
 		PANIC ("No free sectors!");
-
 	else
 	{
-		block_write (b, sector_num, kpage);
-		swap_table[sector_num]->inUse = 1;
-		swap_table[sector_num]->kpage = kpage;
-
 		struct page *p = page_lookup (kpage, 1);
-		p->page = PAGE_SWAP;
-		p->whereSwap = sector_num;
+    printf("putting into swap: %p    %d\n", p->upage, sector_num);
+
+    p->page = PAGE_SWAP;
+    //p->kpage = NULL;
+    p->whereSwap = sector_num;
+    int page_size = 4096;
+
+    while (page_size > 0) {
+      block_write (b, sector_num, kpage);
+      page_size -= BLOCK_SECTOR_SIZE;
+    swap_table[sector_num]->inUse = 1;
+    swap_table[sector_num]->kpage = kpage;
+      sector_num++;
+    }
+
+    hex_dump (kpage, kpage, 1024, true);
+
 	}
 
 	return true;
@@ -101,14 +113,26 @@ swap_read (void *kpage)
     return false;
 
 	block_sector_t sector_num = swap_find_sector (kpage);
+  printf("block sector returned %d, blcok return from p->whereSwap \n", sector_num);//, page_lookup(kpage, true)->whereSwap);
 
-	if (sector_num == SWAP_SIZE + 1)
-		return false;
+  //hex_dump (kpage, kpage, 64, true);
 
-	else 
-	{
-		block_read (b, sector_num, kpage);
+  if (sector_num == SWAP_SIZE + 1)
+    return false;
+
+  else 
+  {
+    int page_size = 4096;
+
+    while (page_size > 0) {
+      block_read (b, sector_num, kpage);
+      page_size -= BLOCK_SECTOR_SIZE;
 		swap_nullify (sector_num);
+      sector_num++;
+    }
+  
+
+  hex_dump (kpage, kpage, 1024, true);
 	}
 
 	return true;

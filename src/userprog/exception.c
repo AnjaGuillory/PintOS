@@ -10,6 +10,7 @@
 #include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "threads/vaddr.h"
 
 
 /* Number of page faults processed. */
@@ -143,6 +144,9 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
+  // printf("fault_addr %p\n", fault_addr);
+
+  //printf("fault addr %p esp %p is kernel vaddr %d\n", fault_addr, f->esp, is_kernel_vaddr(fault_addr));
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -156,8 +160,14 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (user && not_present) {
 
+  if (!not_present) {
+    debug_backtrace();
+    PANIC ("i died");
+  }
+
+  if (user && not_present) {
+     //printf("in if\n");
     /* Checks if buffer doesn't have anything in it */
     if (fault_addr == NULL) {      
       kill(f);
@@ -166,10 +176,36 @@ page_fault (struct intr_frame *f)
     fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
 
     struct page *p = page_lookup (fault_addr, false);
+    //printf("p->upage %p\n", p->kpage);
+    if (p == NULL) {
+        printf("p is null\n");
+      if (fault_addr < f->esp) {
+        printf("faulat addr < esp\n");
+        page_insert (fault_addr, NULL);
 
-    if(p == NULL || p->kpage == NULL) {
+        p = page_lookup (fault_addr, false);
+        
+        if (p == NULL)
+          kill (f);
+
+        p->isStack = 1;
+        p->writable = 1;
+        p->isZero = true;
+        p->read_bytes = PGSIZE;
+      }
+    }
+
+    if(p->kpage == NULL) {
+      //printf("hey\n");
       void * kpage = palloc_get_page(PAL_USER);
+
+      printf("kpage %p fault_addr %p\n", kpage, fault_addr);
+
+      if (kpage == NULL)
+        printf("heyasdjfklsjfwsiefojwed\n");
+
       frame_stack (p->isStack, kpage);
+      // printf("p->writable %d \n", p->writable);
 
       if (page_load (p, kpage) == false) {
         kill (f);
@@ -177,8 +213,10 @@ page_fault (struct intr_frame *f)
 
       page_insert(fault_addr, kpage);
       pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
+      printf("going to return\n");
       return;
     }
+    
 
   }
 

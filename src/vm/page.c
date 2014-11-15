@@ -94,9 +94,9 @@ page_load (struct page *p, void *kpage)
 {
   if (p->page == PAGE_FILESYS) {
     if (p->isZero == true) {
-      memset (kpage, 0, PGSIZE);
+      memset (kpage + p->zero_bytes, 0, PGSIZE);
 
-      p->zero_bytes -= PGSIZE;
+     // p->zero_bytes -= PGSIZE;
     }
     else {
       if (p->read_bytes > 0 || p->zero_bytes > 0) {
@@ -108,15 +108,17 @@ page_load (struct page *p, void *kpage)
             palloc_free_page (kpage);
             return false; 
           }
+          //printf("p->zerobytes %p\n", kpage);
         memset (kpage + p->read_bytes, 0, p->zero_bytes);
       }
     }
   }
   else if (p->page == PAGE_SWAP) {
+    printf("going to swap read\n");
+
     if (swap_read (kpage) == false)
       return false;
   }
-
   return true;
 }
 

@@ -118,8 +118,8 @@ struct thread
     bool isWaited;                       /* Flag that indicates if the thread is being waited on by the parent */
     struct file *self;                   /* the thread's executable */
     struct file *files[128];             /* An array of the thread's files */
-    struct hash page_table;             /* Supplemental page table */
-    
+    struct hash page_table;              /* Supplemental page table */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

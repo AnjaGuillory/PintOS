@@ -24,6 +24,7 @@
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
+#include "threads/vaddr.h"
 
 static struct frame_entry *frame_table[TABLE_SIZE];	/* Frame table */
 static int frame_pointer;				/* Frame pointer for clock algorithm */
@@ -47,6 +48,11 @@ frametable_init ()
   }  
 }
 
+struct frame_entry *
+getFrameEntry (){
+  return frame_table[0];
+}
+
 /*Problem: We're not checking if the address we are pointing to 
  is actually available in memory, also we're not error checking
 the address. Also, how do we need to indicate to the process where
@@ -62,6 +68,9 @@ frame_put (void * kpage){
   bool success = 0;
 
   unsigned int i;
+
+  // printf("KPAGE: %p\n", kpage);
+
   for(i = 0; i < TABLE_SIZE; i++) {
     /*Reset success to 0 to record success for every page
       This way, if there is at least one failure, the allocation will fail*/
@@ -100,7 +109,7 @@ void frame_evict(void * kpage){
   // replace the page in the frame, and set clock bit to 1,
   // then place the pointer after that frame
   lock_acquire(&Lock);
-
+  //printf("WE'RE IN FRAME EVICT\n\n\n\n\n\n");
   //int accessed = hash_entry(thread_current()->page_table, page, page);
 
   unsigned int i;
@@ -112,11 +121,16 @@ void frame_evict(void * kpage){
 
       if(entry->isStack == true || pagedir_is_dirty(activepd, entry->addr))
       {
+        printf("going to swap write with %p\n", entry->addr);
         swap_write(entry->addr);
       }
 
-      frame_clean(i);
+      palloc_free_page (entry->addr);
+      //frame_clean(i);
+      lock_release (&Lock);
       frame_put(kpage);
+      lock_acquire (&Lock);
+      
       if (i == TABLE_SIZE - 1)
         frame_pointer = 0;
       else
@@ -127,6 +141,7 @@ void frame_evict(void * kpage){
       entry->clockbit = 0;
   }
   
+  printf("exiting frame evict\n");
   lock_release(&Lock);
 
 }
@@ -158,7 +173,10 @@ void frame_null (struct frame_entry *entry){
 }
 
 void frame_stack (bool isStack, void *kpage) {
-  if (isStack)
+
+  if (isStack) {
+  printf("in frame stack\n");
     frame_table[frame_find_kpage (kpage)]->isStack = isStack;
+  }
 }
 

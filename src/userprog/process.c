@@ -544,15 +544,21 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+      //printf("read_bytes %d\n", page_read_bytes);
       success = page_insert (upage, NULL);
 
       struct page *p = page_lookup(upage, false);
+
+       //printf("Load Segment // p->upage is: %p\n", p->upage);
 
 
       p->page = PAGE_FILESYS;
       p->file = file;
       p->ofs = ofs;
       p->writable = writable;
+
+
+      // printf("p->writable in load segment %d, %p\n", p->writable, upage);
 
       if (zero_bytes == PGSIZE)
         p->isZero = true;
@@ -565,7 +571,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
+
       upage += PGSIZE;
+      //printf("upage + PGSIZE %p\n", upage);
       ofs += page_read_bytes;
     }
 
@@ -585,6 +593,7 @@ setup_stack (char *file_name, void **esp)
     {
 
       void * upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+      //printf("upage in setup_stack %p end of pgsize %p\n", upage, upage+PGSIZE);
       success = install_page (upage, kpage, true);
       
       if (success) {
