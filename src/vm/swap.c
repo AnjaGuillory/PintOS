@@ -67,8 +67,6 @@ swap_init ()
 bool 
 swap_write (void *kpage)
 {
-  printf("in swap write\n");
-
   b = block_get_role (BLOCK_SWAP);
 
   if (b == NULL)
@@ -87,7 +85,7 @@ swap_write (void *kpage)
     
     int page_size = 0;
 
-    while (page_size < 4096) {
+    while (page_size < PGSIZE) {
       block_write (b, sector_num, kpage + page_size);
       
       swap_table[sector_num]->inUse = 1;
@@ -104,14 +102,12 @@ swap_write (void *kpage)
 }
 
 bool 
-swap_read (void *kpage)
+swap_read (block_sector_t sector_num, void *kpage)
 {
   b = block_get_role (BLOCK_SWAP);
 
   if (b == NULL)
     return false;
-
-  block_sector_t sector_num = swap_find_sector (kpage);
 
   if (sector_num == SWAP_SIZE + 1)
     return false;
@@ -120,8 +116,8 @@ swap_read (void *kpage)
   {
     int page_size = 0; 
 
-    while (page_size < 4096) {
-      block_read (b, sector_num, (uint32_t) kpage+ page_size);
+    while (page_size < PGSIZE) {
+      block_read (b, sector_num, (uint32_t) kpage + page_size);
 
       swap_nullify (sector_num);
       
