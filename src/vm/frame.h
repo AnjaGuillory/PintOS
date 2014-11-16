@@ -8,8 +8,6 @@
 
 struct frame_entry{			/* Entry struct to put in the frame atable array */
   void * addr;				/* Address that entry points to in MM */
-  uint32_t frame_num;		/* Frame number */
-  uint32_t offset;			/* Offset */
   bool isAllocated;			/* Indicate if already in use */
   int clockbit;	     		/* Clock bit for clock algorithm */
   bool isStack;             /* Is this a stack page? */
@@ -17,14 +15,14 @@ struct frame_entry{			/* Entry struct to put in the frame atable array */
   bool notevictable; 			/* sets whether the frame can be evicted or not */
 };
 
-struct frame_entry *frame_getEntry (void *);
-void frametable_init (void);
-void frame_put (void *);
-void frame_evict (void);
-int frame_find_kpage (void *);
-void frame_clean(int);
-void frame_null (struct frame_entry *);
-void frame_stack (bool , void *);
-void free_frame (void *, struct thread *);
+void frametable_init (void);	/* Initialize frame table */
+void frame_put (void *);		/* Put page into an available frame */
+void frame_evict (void);		/* Evict a currently unnecessary frame */
+struct frame_entry *frame_getEntry (void *); /* Finds the frame entry that maps to kpage */
+int frame_find_kpage (void *);	/* Find a frame */
+void frame_clean(int);			/* Clean an entry */
+void frame_null (struct frame_entry *);	/* Nullify contents of entry for new usage */
+void frame_stack (bool , void *);	/* Check if stack frame */
+void free_frame (void *, struct thread *);  /* Free the frame, page, and swap when evicted */
 
 #endif

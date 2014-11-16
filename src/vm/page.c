@@ -48,33 +48,40 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
   return a->upage < b->upage;
 }
 
+/* Initialize hash table as supplemental page table */
 void supplemental_init() {
   lock_init(&Lock);
   hash_init (&(thread_current()->page_table), page_hash, page_less, NULL);
 }
 
+/* Insert new page/mapping into supplemental page table */
 bool page_insert (void *upage, void * kpage)
 {
   struct page *p;
 
+  /* If page was already inserted, then update with new mapping */
   if ((p = page_lookup (upage, false, thread_current())) != NULL)
   {
     page_update (p, kpage);
     return true;
   }
 
+  /* Allocate space for new page */
   p = (struct page *) malloc (sizeof (struct page));
 
+  /* Update contents */
   p->upage = upage;
   p->kpage = kpage;
   p->isStack = 0;
 
+  /* Insert into hash table (supplemental page table) */
   if (hash_insert (&(thread_current()->page_table), &p->hash_elem) == NULL)
     return true;
 
   return false;
 }
 
+/* Update supplemental page table */
 bool page_update (struct page *p, void *kpage) {
   
   p->kpage = kpage;
@@ -85,6 +92,7 @@ bool page_update (struct page *p, void *kpage) {
   return false;
 }
 
+/* Delete a page currently no longer needed */
 bool page_delete (void * kpage)
 {
   struct page *p = page_lookup (kpage, true, thread_current());
@@ -95,36 +103,44 @@ bool page_delete (void * kpage)
   return true;
 }
 
+/* Load page into memory */
 bool
 page_load (struct page *p, void *kpage)
 {
+
+  /* If read in from a file */
   if (p->page == PAGE_FILESYS) {
+
+    /* Zero the whole page if isZero is true */
     if (p->isZero == true) {
       memset (kpage + p->zero_bytes, 0, PGSIZE);
 
-     // p->zero_bytes -= PGSIZE;
     }
     else {
+
+      /* Read from seeked file */
       if (p->read_bytes > 0 || p->zero_bytes > 0) {
         file_seek (p->file, p->ofs);
 
         /* Load this page. */
         if (file_read (p->file, kpage, p->read_bytes) != (int) p->read_bytes)
           {
+            /* Free if invalid */
             palloc_free_page (kpage);
             return false; 
           }
-          //printf("p->zerobytes %p\n", kpage);
+
+        /* Read in bytes into page */
         memset (kpage + p->read_bytes, 0, p->zero_bytes);
       }
     }
   }
+
+  /* Read from swap if it is a swapped page */
   else if (p->page == PAGE_SWAP) {
-    //printf("We see that the page is a swapped page\n");
     bool readingIn = swap_read (p->whereSwap, kpage);
     if (readingIn == false)
       return false;
-    //printf("Reading in a swapped page\n");
   }
   return true;
 }
@@ -134,50 +150,30 @@ page_load (struct page *p, void *kpage)
 struct page *
 page_lookup (void * addr, bool kpage, struct thread *t)
 {
-  //lock_acquire (&Lock);
   struct hash_iterator i;
 
+  /* Iterate throgh hash table to look for page at addr */
   hash_first (&i, &(t->page_table));
+
   while (hash_next (&i))
   {
     struct page *p = hash_entry (hash_cur (&i), struct page, hash_elem);
     
     if (kpage) {
-      if (p->kpage == addr){
-        //lock_release (&Lock);
+      if (p->kpage == addr)
         return p;
-      }
     }
     else {
-      if (p->upage == addr){
-        //lock_release (&Lock);
+      if (p->upage == addr)
         return p;
-      }
     }
   }
-
-  //lock_release (&Lock);
   return NULL;
 }
 
 void 
 page_destroy () 
 {
+  /* Destroy hash table upon termination */
   hash_destroy (&(thread_current()->page_table), &(page_hash));
 }
-
-// void 
-// page_find () {
-//   struct page *p = (struct page *) malloc (sizeof (struct page *));
-//   struct hash_elem *e;
-
-//   if(kpage) 
-//      /* For kpage */
-//     p->kpage = addr;
-//   else
-//     /* For upage */
-//     p->upage = addr;
-
-//   e = hash_find (&(thread_current()->page_table), &p->hash_elem);
-//   return e != NULL ? hash_entry (e, struct page, hash_elem) : NULL;
-// }

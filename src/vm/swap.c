@@ -22,7 +22,7 @@
 #include "vm/swap.h"
 #include "devices/block.h"
 
-/* Swap table for the swap partition */
+/*** Andrea drove here ***/
 
 /* A block device. */
 struct block
@@ -41,14 +41,17 @@ struct block
   };
 
 
-// Call block get role with BLOCK_SWAP once
-// whenever a page is evicted from frame,
-// get an open sector (freelist) (keep our own mapping of this)
-// call block_write to that sector, pass in page pointer
-// when a process is terminated, then add the sector to the freelist
-// when we want to put the page back in a frame, use block_read
+/*** Call block get role with BLOCK_SWAP once
+* whenever a page is evicted from frame,
+* get an open sector (freelist) (keep our own mapping of this)
+* call block_write to that sector, pass in page pointer
+* when a process is terminated, then add the sector to the freelist
+* when we want to put the page back in a frame, use block_read ***/
 
+/* Swap table for the swap partition */
 static struct swap_frame * swap_table[SWAP_SIZE];
+
+/* Declare a block */
 struct block * b;
 struct lock Lock;
 
@@ -66,96 +69,98 @@ swap_init ()
   }
 }
 
+/*** Andrea and Anja drove here ***/
+
+/* Write evicted frame into swap space */
 bool 
 swap_write (void *kpage, struct thread *owner)
 {
   struct frame_entry *frame = frame_getEntry (kpage);
+  /* Sets notevictable to true so the frame is not evicted while being
+  written to swap */
   frame->notevictable = 1;
-  
-  //printf("in swap write\n");
+
+  /* Get a free block from partition */
   b = block_get_role (BLOCK_SWAP);
 
+  /* If block is null, return as unsuccessful */
   if (b == NULL)
-  {
     return false;
-  }
+
+  /* Get a free swap entry in swap table */
   lock_acquire(&Lock);
   block_sector_t sector_num = swap_get_free ();
   lock_release(&Lock);
+
+  /* If searched all of swap table and no available entry found, panic */
   if (sector_num == SWAP_SIZE + 1)
-  {
     PANIC ("No free sectors!");
-  }
+
   else
   {
+    /* Look up the page to write */
     struct page *p = page_lookup (kpage, 1, owner);
-    
 
+    /* Update content information accordingly */
     p->page = PAGE_SWAP;
-    //printf("Setting to page swap!!! \n");
     p->whereSwap = sector_num;
     
-  //hex_dump(kpage, kpage, 64, true);
-  //printf("\n");
     int page_size = 0;
 
+    /* Write everything in frame to block */
     while (page_size < PGSIZE) {
-      //printf("pagesize: %d\n", page_size);
       block_write (b, sector_num, kpage + page_size);
       
       swap_table[sector_num]->inUse = 1;
       swap_table[sector_num]->kpage = kpage;
       
       page_size += BLOCK_SECTOR_SIZE;
-      //printf("pagesize2: %d\n", page_size);
       sector_num++;
 
     }
   }
-
-  //hex_dump(kpage, kpage, 1024, true);
   frame->notevictable = 0;
+  /* On success, return true */
   return true;
 
 }
 
+
+/*** Dara drove here ***/
+
+/* Read page from swap space */
 bool 
 swap_read (block_sector_t sector_num, void *kpage)
 {
-  //lock_acquire(&Lock);
-
   struct frame_entry *frame = frame_getEntry (kpage);
   frame->notevictable = 1;
-  //printf("in swap read\n");
+
+  /* Get block from swap space */
   b = block_get_role (BLOCK_SWAP);
 
+  /*If null or cannot find sectory, return unsuccessful */
   if (b == NULL || sector_num == SWAP_SIZE + 1)
-  {
-    //lock_release(&Lock);
     return false;
-  }
 
   else 
   {
+    /* Read from block and nullify its swap entry */
     int page_size = 0; 
 
     while (page_size < PGSIZE) {
       block_read (b, sector_num, kpage + page_size);
-      //printf("Block has been read in\n");
       swap_nullify (sector_num);
-      //printf("Swap block was nullified in swap table\n");
       
       page_size += BLOCK_SECTOR_SIZE;
       sector_num++;
     }
   }
-
-  //hex_dump(kpage, kpage, 64, true);
-  //lock_release(&Lock);
   frame->notevictable = 0;
 	return true;
 }
 
+/*** Anja drove here ***/
+/* Find a free swap entry */
 block_sector_t 
 swap_get_free () 
 {
@@ -166,9 +171,13 @@ swap_get_free ()
 			return i;
 	}
 
+  /* If cannot find free entry, return this default to show invalidity */ 
 	return SWAP_SIZE + 1;
 }
 
+/*** Dara drove here ***/
+
+/* Find sectory with this page */
 block_sector_t 
 swap_find_sector (void * kpage)
 {
@@ -181,6 +190,7 @@ swap_find_sector (void * kpage)
 	return SWAP_SIZE + 1;
 }
 
+/* Nullify contents of a no longer needed swap space */
 void 
 swap_nullify (block_sector_t index)
 {
