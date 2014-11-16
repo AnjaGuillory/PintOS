@@ -417,7 +417,7 @@ int read (int fd, void *buffer, unsigned size)
   int charsRead = 0;
 
   /* Checks buffer for a bad pointer */
-  if(checkPointer (buffer) == -1)
+  if(checkPointer (buffer) == -1 || strlen(buffer) < size)
   {
     exit(-1);
   }
