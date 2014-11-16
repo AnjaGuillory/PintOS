@@ -67,10 +67,11 @@ int* getArgs(int * myEsp, int count) {
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-
   /* Andrea and Anja drove here */
   int * myEsp = f->esp;
   struct thread *cur = thread_current ();
+
+  cur->myEsp = f->esp;
 
   /* Checks if the pointer is valid */
   if(checkPointer (f->esp) == -1)
@@ -149,6 +150,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       args = getArgs (myEsp, 3);
 
       f->eax = read (args[0], args[1], args[2]);
+      //printf("back from read\n");
       break;
     case SYS_WRITE:
       // WRITE
@@ -188,7 +190,6 @@ void exit (int status) {
   
 
   printf ("%s: exit(%d)\n", token, cur->child_exit);
-  //printf("%d\n", cur->child_exit);
   
   /* Exits the thread */
   thread_exit ();
@@ -272,14 +273,12 @@ bool create (const char *file, unsigned initial_size)
       exit(-1);
   
   int flag = filesys_create (file, initial_size);
-  printf("Hello\n");
   lock_release(&Lock);
   return flag;
 }
 
 int open (const char *file)  {
   /* Dara and Andrea drove here */
-
   struct thread *cur = thread_current();
 
   if(checkPointer (file) == -1)
@@ -420,13 +419,14 @@ int read (int fd, void *buffer, unsigned size)
   /* Checks buffer for a bad pointer */
   if(checkPointer (buffer) == -1)
   {
-
     exit(-1);
   }
   
   /* Checks if getting input */
-  if (fd == 0)
+  if (fd == 0) {
+    
     charsRead = input_getc ();
+  }
 
   /* Dara drove here */
   else
@@ -434,8 +434,9 @@ int read (int fd, void *buffer, unsigned size)
     struct thread *cur = thread_current ();
     
     /* Checks if fd is within bounds of array */
-    if(fd < 2 || fd > 127)
+    if(fd < 2 || fd > 127) {
       return -1;
+    }
 
     /* Gets the file from the files array */
     struct file * fil = cur->files[fd];
@@ -444,7 +445,6 @@ int read (int fd, void *buffer, unsigned size)
     if(fil == NULL){
       exit(-1);
     }
-
 
     /* Writes to the file and puts number of written characters */
     charsRead = file_read (fil, (char *) buffer, size); 
@@ -527,10 +527,9 @@ int checkPointer (const void * buffer)
     exit(-1);
 
   /* Checks if pointer is in user space */
-  else if (!is_kernel_vaddr (buffer)) {
+  if (!is_kernel_vaddr (buffer)) {
     /* Checks if the pointer is mapped */
-    if(pagedir_get_page (activepd, buffer) == NULL || lookup_page (activepd, buffer, 0) == NULL) {
-
+    if(lookup_page (activepd, buffer, 0) == NULL) {
       exit (-1);
     }
   }

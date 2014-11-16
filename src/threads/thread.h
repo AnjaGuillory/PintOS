@@ -112,6 +112,8 @@ struct thread
 
     /* Dara drove here */
 
+    void *myEsp;
+
     int exited;
     struct semaphore exiting;
     int child_exit;                      /* Pointer to eax */
