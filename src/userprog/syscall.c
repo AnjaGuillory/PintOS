@@ -16,7 +16,7 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 
-/* Andrea drove here */
+/*** Andrea drove here ***/
 
 /* Struct that holds the file descriptor */
 struct filing {
@@ -32,7 +32,7 @@ struct file
     bool deny_write;            /* Has file_deny_write() been called? */
   };
 
-/* Anja drove here */
+/*** Anja drove here ***/
 
 int global_status;              /* Global status for exit function */
 
@@ -53,7 +53,7 @@ syscall_init (void)
   
 }
 
-/* Dara drove here */
+/*** Dara drove here ***/
 
 int* getArgs(int * myEsp, int count) {
   int* args[count];
@@ -67,7 +67,7 @@ int* getArgs(int * myEsp, int count) {
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  /* Andrea and Anja drove here */
+  /*** Andrea and Anja drove here ***/
   int * myEsp = f->esp;
   struct thread *cur = thread_current ();
 
@@ -89,7 +89,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   int* args = (int *)malloc(sizeof(int));
   
-  /* Dara and Anja drove here */
+  /*** Dara and Anja drove here ***/
 
   /* Indicates the number for the first FD */
   if(list_empty(&cur->open_fd)) {
@@ -175,7 +175,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   } 
 }
 
-/* Dara drove here */
+/*** Dara drove here ***/
 void exit (int status) {
   
   struct thread *cur = thread_current ();
@@ -195,7 +195,7 @@ void exit (int status) {
   thread_exit ();
 }
 
-/* Anja drove here */
+/*** Anja drove here ***/
 void halt (void)
 {
   /*Call wait on initial process*/
@@ -211,7 +211,7 @@ int write (int fd, const void *buffer, unsigned size) {
 
   int charWritten = 0;
   
-  /* Anja drove here */
+  /*** Anja drove here ***/
 
   /* Check if we need to write to a file */
   if (fd > 1){
@@ -232,7 +232,7 @@ int write (int fd, const void *buffer, unsigned size) {
     charWritten = file_write (fil, (char *) buffer, size);
   }
 
-  /* Andrea drove here */
+  /*** Andrea drove here ***/
 
   /* Checks if we need to write to console */
   else if (fd == 1){
@@ -261,7 +261,7 @@ int write (int fd, const void *buffer, unsigned size) {
   return charWritten;
 }
 
-/* Dara drove here */
+/*** Dara drove here ***/
 
 bool create (const char *file, unsigned initial_size) 
 {
@@ -278,7 +278,7 @@ bool create (const char *file, unsigned initial_size)
 }
 
 int open (const char *file)  {
-  /* Dara and Andrea drove here */
+  /*** Dara and Andrea drove here ***/
   struct thread *cur = thread_current();
 
   if(checkPointer (file) == -1)
@@ -325,7 +325,7 @@ int open (const char *file)  {
   return fd;
 }
 
-/* Anja drove here */
+/*** Anja drove here ***/
 
 int filesize (int fd) {
   struct thread *cur = thread_current ();
@@ -339,7 +339,7 @@ int filesize (int fd) {
   return len;
 }
 
-/* Anja and Dara drove here */
+/*** Anja and Dara drove here ***/
 
 unsigned tell (int fd) {
   struct thread *cur = thread_current ();
@@ -350,7 +350,7 @@ unsigned tell (int fd) {
   return pos;
 }
 
-/* Andrea drove here */
+/*** Andrea drove here ***/
 
 void seek (int fd, unsigned position) {
   struct thread *cur = thread_current ();
@@ -367,7 +367,8 @@ void seek (int fd, unsigned position) {
   file_seek (cur->files[fd], position);
 }
 
-/* Anja drove here */
+/*** Anja drove here ***/
+
 bool remove (const char *file) {
   lock_acquire(&Lock);
 
@@ -380,7 +381,7 @@ bool remove (const char *file) {
   return flag;
 }
 
-/* Andrea and Anja drove here */
+/*** Andrea and Anja drove here ***/
 
 void close (int fd) {
   struct thread *cur = thread_current ();
@@ -412,12 +413,12 @@ void close (int fd) {
 int read (int fd, void *buffer, unsigned size) 
 {
 
-  /* Andrea drove here */
+  /*** Andrea drove here ***/
 
   int charsRead = 0;
 
   /* Checks buffer for a bad pointer */
-  if(checkPointer (buffer) == -1 || strlen(buffer) < size)
+  if(checkPointer (buffer) == -1)//|| strlen(buffer) < size)
   {
     exit(-1);
   }
@@ -428,7 +429,8 @@ int read (int fd, void *buffer, unsigned size)
     charsRead = input_getc ();
   }
 
-  /* Dara drove here */
+  /*** Dara drove here ***/
+
   else
   {
     struct thread *cur = thread_current ();
@@ -456,7 +458,7 @@ int read (int fd, void *buffer, unsigned size)
 
 pid_t exec (const char *cmd_line) 
 {
-  /* Dara and Andrea drove here */
+  /*** Dara and Andrea drove here ***/
 
   /* Checks if cmd_line is valid */
   if(checkPointer (cmd_line) == -1)
@@ -478,7 +480,7 @@ pid_t exec (const char *cmd_line)
   sema_down (&cur->complete);
   lock_release (&Lock);
 
-  /* Anja drove here */
+  /*** Anja drove here ***/
 
   struct list_elem *e;
 
@@ -487,13 +489,12 @@ pid_t exec (const char *cmd_line)
   {
     struct thread *j = list_entry (e, struct thread, child);
     if (j->tid == result) {
+
       /* Check if the child loaded */
       if (j->load_flag == 1) {
-        //printf("result %d\n", result);
         return result;
       }
       else {
-        //printf("hey\n");
           return -1;
       }
     }
@@ -501,7 +502,7 @@ pid_t exec (const char *cmd_line)
   return -1;
 }
 
-/* Dara drove here */
+/*** Dara drove here ***/
 
 int wait (pid_t pid) {
   struct thread *cur = thread_current();
@@ -510,12 +511,10 @@ int wait (pid_t pid) {
   int result = process_wait (pid);
 
   /* Gives the parent the exit status of the child */
-  //cur->parent->child_exit = result;
-
   return result;
 }
 
-/* Anja and Dara drove here */
+/*** Anja and Dara drove here ***/
 
 int checkPointer (const void * buffer)
 {

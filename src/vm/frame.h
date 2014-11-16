@@ -16,12 +16,12 @@ struct frame_entry{			/* Entry struct to put in the frame atable array */
 };
 
 struct frame_entry *getFrameEntry (void);
-void frametable_init (void);
-void frame_put (void *);
-void frame_evict (void);
-int frame_find_kpage (void *);
-void frame_clean(int);
-void frame_null (struct frame_entry *);
-void frame_stack (bool , void *);
+void frametable_init (void);	/* Initialize frame table */
+void frame_put (void *);		/* Put page into an available frame */
+void frame_evict (void);		/* Evict a currently unnecessary frame */
+int frame_find_kpage (void *);	/* Find a frame */
+void frame_clean(int);			/* Clean an entry */
+void frame_null (struct frame_entry *);	/* Nullify contents of entry for new usage */
+void frame_stack (bool , void *);	/* Check if stack frame */
 
 #endif

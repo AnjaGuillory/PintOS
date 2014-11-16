@@ -537,28 +537,24 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   while (read_bytes > 0 || zero_bytes > 0) 
     {
 
-      //printf("upage %p\n", upage);
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      //printf("read_bytes %d\n", page_read_bytes);
+      /* Insert new page into supplemental page table */
       success = page_insert (upage, NULL);
 
+      /* Get newly created page */
       struct page *p = page_lookup(upage, false);
 
-       //printf("Load Segment // p->upage is: %p\n", p->upage);
 
-
+      /* Update its contents */
       p->page = PAGE_FILESYS;
       p->file = file;
       p->ofs = ofs;
       p->writable = writable;
-
-
-      // printf("p->writable in load segment %d, %p\n", p->writable, upage);
 
       if (zero_bytes == PGSIZE)
         p->isZero = true;
@@ -568,13 +564,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       p->read_bytes = page_read_bytes;
       p->zero_bytes = page_zero_bytes;
 
+
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
-
       upage += PGSIZE;
-      //printf("upage + PGSIZE %p\n", upage);
-      ofs += page_read_bytes;
+      ofs += page_read_bytes; /* Next time read from next available offset */
     }
 
   return success;
@@ -593,7 +588,6 @@ setup_stack (char *file_name, void **esp)
     {
 
       void * upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
-      //printf("upage in setup_stack %p end of pgsize %p\n", upage, upage+PGSIZE);
       success = install_page (upage, kpage, true);
       
       if (success) {
@@ -655,7 +649,6 @@ void the_stack(char *file_name, void **esp)
   /* Make a copy of file_name */
   strlcpy (str1, file_name, PGSIZE);
 
-  //printf("original esp %p\n", myEsp);
 
   /* Break file_name into tokens using
   * "/bin/ls -l foo bar" - > "/bin/ls", "-l", "foo", "bar"
@@ -678,21 +671,18 @@ void the_stack(char *file_name, void **esp)
     myEsp -= strlen(token[s]) + 1;
     argv[s] = myEsp;
     memcpy(myEsp, token[s], strlen(token[s]) + 1);
-    //printf("%p, argv[%d] '%s' char[%d]\n", myEsp, s, token[s], strlen(token[s]) +1);
   }
 
-  //printf("length: %d\n", argc);
 
   /* Null Sentinel */
   argv[argc] = 0;
 
   /* Align to word size */
   int x = (unsigned int)myEsp % 4;
-  //printf("%i\n", x);
+
   if (x != 0)
   {
     myEsp -= x;
-    // memcpy(myEsp, &argv[argc], x);
   }
 
   /* Push the addresses of args onto the stack */
@@ -700,27 +690,24 @@ void the_stack(char *file_name, void **esp)
   for (j = argc; j >= 0; j--) 
   {
     myEsp -= sizeof(char *);
-    //printf("%p, argv[%d] '%p' char*\n", myEsp, j, argv[j]);
     memcpy(myEsp, &argv[j], sizeof(char *));
   }
 
-  // Push argv
+  /* Push argv */
   char * tempEsp = myEsp;
   myEsp -= sizeof(char **);
   memcpy(myEsp, &tempEsp, sizeof(char **));
 
-  // Push argc 
+  /* Push argc */
   myEsp -= sizeof(int);
   memcpy(myEsp, &argc, sizeof(int));
 
-  // Push return address
+  /* Push return address */
   myEsp -= sizeof(char *);
   memcpy(myEsp, &argv[argc], sizeof(char *));
 
   /* Set esp back */
   *esp = myEsp;
- // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
-  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
   /* Free pages */
   palloc_free_page(argv);

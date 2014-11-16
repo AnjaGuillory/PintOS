@@ -31,16 +31,16 @@ struct page
     bool writable;
 };
 
-void supplemental_init(void);
-bool page_insert (void *, void *);
-bool page_update (struct page *, void *);
-bool page_delete (void *);
-struct page * page_lookup (void *, bool);
-unsigned page_hash (const struct hash_elem *, void *);
-bool page_load (struct page *, void *);
-void page_destroy (void);
+void supplemental_init(void);   /* Initialize supplemental page table */
+bool page_insert (void *, void *);  /* Insert page into supplemental page table */
+bool page_update (struct page *, void *);   /* Update contents of page entry */
+bool page_delete (void *);  /* Delete page entry */
+struct page * page_lookup (void *, bool);   /* Look up a page entry */
+unsigned page_hash (const struct hash_elem *, void *);  /* Hash a new page entry */
+bool page_load (struct page *, void *);    /* Load page */
+void page_destroy (void);   /* Destroy supplemental page table */
 bool page_less (const struct hash_elem *, const struct hash_elem *,
-           void *);
+           void *); /* Check if element precedes another element */
 
 
 #endif /* vm/page.h */

@@ -26,6 +26,8 @@
 #include "vm/swap.h"
 #include "threads/vaddr.h"
 
+/*** Dara drove here ***/
+
 static struct frame_entry *frame_table[TABLE_SIZE];	/* Frame table */
 static int frame_pointer;				/* Frame pointer for clock algorithm */
 static struct lock Lock;				/* Lock synchronize frame table operations*/
@@ -38,7 +40,9 @@ frametable_init ()
   /* Initialize Swap Table */
   swap_init ();
 
+  /* Initialize mutex */
   lock_init(&Lock);
+  /* Create entries for each index of the frame table */
   frame_pointer = 0;
 
   unsigned int i;
@@ -53,34 +57,34 @@ getFrameEntry (){
   return frame_table[0];
 }
 
-/*Problem: We're not checking if the address we are pointing to 
- is actually available in memory, also we're not error checking
-the address. Also, how do we need to indicate to the process where
-each page ends so that is doesn't access another process' frame?*/
+/*** Dara and Andrea drove here ***/
 
-/*Is kpage a frame address or a vm address?*/
-/*Most likely will need hash table to map memory */
-
+/* Find a frame for a page */
 /*This part MUST be synchronized */
 void
 frame_put (void * kpage){
+  /* Acquire lock before entering */
   lock_acquire(&Lock);
+
+  /* Boolean to determine if successful */
   bool success = 0;
 
   unsigned int i;
 
-  // printf("KPAGE: %p\n", kpage);
-
+  /* If the page could not be found, return */
   if (frame_find_kpage(kpage) != -1)
     return;
 
+  /* Search through table for an available frame */
   for(i = 0; i < TABLE_SIZE; i++) {
+
     /*Reset success to 0 to record success for every page
       This way, if there is at least one failure, the allocation will fail*/
     success = 0;
 
     struct frame_entry *entry = frame_table[i];
     
+    /* If the entry is free, get it */
     if(entry->isAllocated == 0) {
       entry->addr = kpage;
       entry->frame_num = (uint32_t) kpage & 0xFF400000;
@@ -94,7 +98,11 @@ frame_put (void * kpage){
     }
   }
 
+  /* If could not find an available entry, 
+  * release lock and evict, then place new page into 
+  * newly freed frame */
   if (success == 0) {
+
     /*Call the eviction policy*/
     lock_release(&Lock);
     frame_evict();
@@ -105,41 +113,32 @@ frame_put (void * kpage){
   }
 }
 
+/*** Andrea and Anja drove here ***/
 void frame_evict(){
-  // clock page algorithm
-  // everytime we add a new frame, set clock bit to 1
-  // when there are no more frames, go through looking for 0 clock bit,
-  // until we find it, we set all clock bit == 1 to 0. `
-  // when we find clockbit == 0, evict that frame,
-  // replace the page in the frame, and set clock bit to 1,
-  // then place the pointer after that frame
+  /*** clock page algorithm
+  * everytime we add a new frame, set clock bit to 1
+  * when there are no more frames, go through looking for 0 clock bit,
+  * until we find it, we set all clock bit == 1 to 0.  
+  * when we find clockbit == 0, evict that frame, 
+  * replace the page in the frame, and set clock bit to 1, 
+  * then place the pointer after that frame ***/
   lock_acquire(&Lock);
-  //printf("WE'RE IN FRAME EVICT\n\n\n\n\n\n");
-
-  //int accessed = hash_entry(thread_current()->page_table, page, page);
 
   unsigned int i;
   for (i = frame_pointer; i < TABLE_SIZE; i++){
     struct frame_entry *entry = frame_table[i];
     if (entry->clockbit == 0 && entry->isAllocated == 1)
     {
-      //printf("entry0 evicted %p\n", entry->addr);
       uint32_t * activepd = active_pd();
 
 
       if(entry->isStack == true || pagedir_is_dirty(activepd, entry->addr))
       {
-        //printf("going to swap write with %p\n", entry->addr);
-        //hex_dump(entry->addr, entry->addr, 64, true);
-        //printf("\n");
         swap_write(entry->addr);
       }
 
-     //lock_release (&Lock);
       palloc_free_page (entry->addr);
-      //lock_acquire (&Lock);
-      //frame_clean(i);
-     // frame_put(kpage);
+
       
       if (i == TABLE_SIZE - 1)
         frame_pointer = 0;
@@ -148,22 +147,21 @@ void frame_evict(){
       break;
     }
     else if (entry->isAllocated == 0) {
-      //printf( "in else if\n");
       frame_pointer = 0;
       i = frame_pointer;
     }
     else {
-      //printf("in else\n");
       entry->clockbit = 0;
     }
   }
   
-  //printf("exiting frame evict\n");
   lock_release(&Lock);
 
 }
 
+/*** Dara drove here ***/
 int frame_find_kpage (void * kpage){
+  /* Find a given frame */
   unsigned int i;
   for(i = 0; i < TABLE_SIZE; i++)
   {
@@ -174,25 +172,26 @@ int frame_find_kpage (void * kpage){
   return -1;
 }
 
+/* Clean out the frame entry */
 void frame_clean(int indx)
 {
   frame_null(frame_table[indx]);
 }
 
+/* Nullify entry to renew it for availability */
 void frame_null (struct frame_entry *entry){
   entry->addr = NULL;
   entry->frame_num = 0;
   entry->offset = 0;
   entry->isAllocated = 0;
-  //frame_entry->pagedIn = 0;
   entry->clockbit = 0;
   entry->isStack = 0;
 }
 
+/* Check if frame is a stack frame, and handle appropriately */
 void frame_stack (bool isStack, void *kpage) {
 
   if (isStack) {
-  //printf("in frame stack\n");
     frame_table[frame_find_kpage (kpage)]->isStack = isStack;
   }
 }

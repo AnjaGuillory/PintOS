@@ -135,6 +135,7 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+  
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
      data.  It is not necessarily the address of the instruction
@@ -143,11 +144,6 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
-
-   //printf("fault_addr %p\n", fault_addr);
-  //printf("Esp is below PHYS_BASE: %d\n",f->esp < PHYS_BASE);
-  //printf("Fault addr: %p\n", fault_addr);
-  //printf("fault addr %p esp %p is kernel vaddr %d\n", fault_addr, f->esp, is_kernel_vaddr(fault_addr));
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -161,153 +157,145 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  /*** Anja drove here ***/
+
   struct thread * blah = thread_current();
   struct page *p;
-  /*printf("Name of current process: %s\n", blah->name);
-  printf("User stack pointer: %p\n", blah->stack);
-  printf("Kernel stack pointer?: %p\n", f->esp);*/
+
   /*if(f->esp > PHYS_BASE)
   {
-    printf("haha ima bove PHYS_BASE");
     kill(f);
   }*/
 
-    if (!user && not_present) {
-      //printf("hey %p %p %p\n\n\n\n\n\n\n\n\n", fault_addr, blah->myEsp, f->esp);
-      fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
+  if (!user && not_present) {
+    fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
 
-      page_insert (fault_addr, NULL);
-        /* Get the page to set its attributes */
-        p = page_lookup (fault_addr, false);
-        
-        /* If unsuccessful after insertion, check insertion method*/
-        if (p == NULL) {
-          //printf("killing\n");
-          kill (f);
-        }
+    /*** Andrea drove here ***/
 
-        /* Set attributes */
-        p->isStack = 1;
-        p->writable = 1;
-        p->isZero = true;
-        p->read_bytes = PGSIZE;
+    /* Add non present page to the supplemental page table with no mapping */
+    page_insert (fault_addr, NULL);
 
-        void * kpage = palloc_get_page(PAL_USER);
-frame_stack (p->isStack, kpage);
-if (page_load (p, kpage) == false) {
-        kill (f);
-      }
-page_insert(fault_addr, kpage);
-pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
-//printf("returning\n");
-return;
+    /* Get the page to set its attributes */
+    p = page_lookup (fault_addr, false);
       
-    }
-  // if (!not_present) {
-  //   //printf("fault addr %p\n", fault_addr);
-  //   //debug_backtrace();
-  //   //PANIC ("i died");
-  // }
-
-    if (!not_present) {
-      //printf("killing\n");
-      exit(-1);
-    }
-
-  /* Find how far below the fault addr is from f->esp*/
-  int diff = fault_addr - f->esp;
-  if (diff < 0)
-    diff = diff * -1;
-  bool pusha = (diff >= 4) && (diff <= 32);
-   /*printf("f->esp: %d, fault_addr: %p pusha: %d\n", f->esp, fault_addr, pusha);
-   printf("thread esp %p\n", thread_current()->myEsp);*/
-
-
-  bool belowEsp = fault_addr < f->esp;
-  bool equal = fault_addr == f->esp;
-  //printf("fault addr %p\n", fault_addr);
-        //printf("blah esp %p %p, fault addr %p\n", blah->myEsp, f->esp, fault_addr);
-  fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
-
-
-  /* If it is the user and the page is not accessed */
-  if (user && not_present) {
-
-    /* Checks if buffer doesn't have anything in it */
-    if (fault_addr == NULL) {      
-      kill(f);
-    }
-    else if (is_kernel_vaddr(fault_addr)) {
-      //printf("kernel\n");
+    /* If unsuccessful after insertion, check insertion method*/
+    if (p == NULL) {
       kill (f);
     }
 
-    /* If could not find page in page directory, search in supplemental page table */
-    p = page_lookup (fault_addr, false);
-    //printf("p->upage %p\n", p->upage);
+    /* Set attributes */
+    p->isStack = 1;
+    p->writable = 1;
+    p->isZero = true;
+    p->read_bytes = PGSIZE;
 
-    /* If it is not in the supplemental page table*/
-    if (p == NULL) {
-      if (pusha || equal) {
+    /* Get page in memory */
+    void * kpage = palloc_get_page(PAL_USER);
+    /* Check if the page is a stack page */
+    frame_stack (p->isStack, kpage);
+      
+    /* Load page with the mapping, if failed then kill it */
+    if (page_load (p, kpage) == false) {
+      kill (f);
+    }
 
-        //printf("faulat addr < esp\n");
-        /* Add to supplemental page table */
-        page_insert (fault_addr, NULL);
-        /* Get the page to set its attributes */
-        p = page_lookup (fault_addr, false);
-        
-        /* If unsuccessful after insertion, check insertion method*/
-        if (p == NULL)
+    /* Insert new mapping into supplemental page table */
+    page_insert(fault_addr, kpage);
+
+    /* Update page directory */
+    pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
+   
+    return;
+      
+    }
+
+    /*** Dara dove here ***/
+
+    /* If writing to a read-only, then exit process */
+    if (!not_present) {
+      exit(-1);
+    }
+
+    /* Find how far below the fault addr is from f->esp */
+    int diff = fault_addr - f->esp;
+    if (diff < 0)
+      diff = diff * -1;
+    bool pusha = (diff >= 4) && (diff <= 32);
+
+    bool equal = fault_addr == f->esp;
+
+    fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
+
+
+    /* If it is the user and the page is not accessed */
+    if (user && not_present) {
+
+      /* Checks if buffer doesn't have anything in it */
+      if (fault_addr == NULL) {      
+        kill(f);
+      }
+      else if (is_kernel_vaddr(fault_addr)) {
+        kill (f);
+      }
+
+      /* If could not find page in page directory, search in supplemental page table */
+      p = page_lookup (fault_addr, false);
+
+      /*** Andrea drove here ***/
+
+      /* If it is not in the supplemental page table*/
+      if (p == NULL) {
+        if (pusha || equal) {
+
+          /* Add to supplemental page table */
+          page_insert (fault_addr, NULL);
+          /* Get the page to set its attributes */
+          p = page_lookup (fault_addr, false);
+          
+          /* If unsuccessful after insertion, check insertion method*/
+          if (p == NULL)
+            kill (f);
+
+          /* Set attributes */
+          p->isStack = 1;
+          p->writable = 1;
+          p->isZero = true;
+          p->read_bytes = PGSIZE;
+          
+        }
+
+        /* If the address is not valid, kill process */
+        else
+        {
           kill (f);
+        }
 
-        /* Set attributes */
-        p->isStack = 1;
-        p->writable = 1;
-        p->isZero = true;
-        p->read_bytes = PGSIZE;
-        
-      }
-      /*else if(f->esp < PHYS_BASE)
-      {
-        printf("fault addr %p %p\n", fault_addr, f->esp);
-        printf("asdfjiwofjiaefj %p %p\n", thread_current()->myEsp, f->esp);
-      }*/
-      /* If the address is not valid, kill process */
-      //else if (fault_addr > f->esp && fault_addr > PHYS_BASE) {}
-      else
-      {
-     //  printf("Are you here? \n");
-        kill (f);
       }
 
-    }
 
-    /*  */
-    if(p->kpage == NULL) {
-      ////printf("hey\n");
-      void * kpage = palloc_get_page(PAL_USER);
+      /*** Anja drove here ***/
 
-      //printf("kpage %p fault_addr %p\n", kpage, fault_addr);
-      /* If run out of user pool space, panic!*/
-      //if (kpage == NULL)
-        //printf("heyasdjfklsjfwsiefojwed\n");
-      /* Check if it is a stack page, and save this information*/
-      frame_stack (p->isStack, kpage);
-      // printf("p->writable %d \n", p->writable);
+      /* If the mapping is null, create a mapping */
+      if(p->kpage == NULL) {
+        void * kpage = palloc_get_page(PAL_USER);
 
-      /* Load the page to memory, if cannot, kill */
-      if (page_load (p, kpage) == false) {
-        kill (f);
+        /* Check if it is a stack page, and save this information*/
+        frame_stack (p->isStack, kpage);
+
+        /* Load the page to memory, if cannot, kill */
+        if (page_load (p, kpage) == false) {
+          kill (f);
+        }
+
+        /* If load is successful, update supplemental in the insertion method */
+        page_insert(fault_addr, kpage);
+
+        /* Update the page directory with new page*/
+        pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
+
+        return;
       }
-
-      /* If load is successful, update supplemental in the insertion method */
-      page_insert(fault_addr, kpage);
-      /* Update the page directory with new page*/
-      pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
-      //printf("going to return\n");
-      return;
-    }
-    
+      
 
   }
 

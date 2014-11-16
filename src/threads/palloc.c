@@ -100,29 +100,17 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 
       pages = pool->base + PGSIZE * page_idx;
 
-      //frame_put(pages);
-      ///printf("returning from evicting a page and putting new one\n");
-
-      // printf("EVICTED KPAGE: %p\n", getFrameEntry()->addr);
-      /*palloc_free_page(getFrameEntry()->addr);
-      lock_acquire (&pool->lock);
-      page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
-      lock_release (&pool->lock);
-      pages = pool->base + PGSIZE * page_idx;*/
     }
     else
       pages = NULL;
   }
-
-  //printf("got page %p\n", pages);
-  //printf("pages from palloc %p\n", pool->base + PGSIZE * page_idx);
 
   if (pages != NULL) 
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
       if (flags & PAL_USER) {
-        //printf("allocating to user pool \n");
+        /* If case of user needing a frame, get one  */
         frame_put (pages);
       }
     }
@@ -163,8 +151,6 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     pool = &kernel_pool;
   else if (page_from_pool (&user_pool, pages)) 
   {
-    //printf("freeing user page\n");
-
     pool = &user_pool;
 
     /* Deleting page from frame_table, swap, and page_table */
@@ -182,11 +168,6 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
     p->kpage = NULL;
 
-    //p = page_lookup (pages, true);
-    
-
-    //printf("p->kpage %p is it in swap %d\n", p->upage, p->page);
-    // page_delete (pages);
   }
   else
     NOT_REACHED ();
