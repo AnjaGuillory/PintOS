@@ -44,12 +44,15 @@ static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
 static bool page_from_pool (const struct pool *, void *page);
 
+struct lock pLock;
+
 /* Initializes the page allocator.  At most USER_PAGE_LIMIT
    pages are put into the user pool. */
 void
 palloc_init (size_t user_page_limit)
 {
   /* Free memory starts at 1 MB and runs to the end of RAM. */
+  lock_init(&pLock);
   uint8_t *free_start = ptov (1024 * 1024);
   uint8_t *free_end = ptov (init_ram_pages * PGSIZE);
   size_t free_pages = (free_end - free_start) / PGSIZE;
@@ -88,18 +91,26 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   lock_release (&pool->lock);
 
   if (page_idx != BITMAP_ERROR)
+  {
+    lock_acquire(&pLock);
     pages = pool->base + PGSIZE * page_idx;
+    lock_release(&pLock);
+  }
   else {
     if (flags & PAL_USER)
     {
+      printf("going to frame_evict \n");
       frame_evict();
 
       lock_acquire (&pool->lock);
       page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
       lock_release (&pool->lock);
 
+      lock_acquire(&pLock);
       pages = pool->base + PGSIZE * page_idx;
+      lock_release(&pLock);
 
+      printf("pages: %p\n", pages);
       //frame_put(pages);
       ///printf("returning from evicting a page and putting new one\n");
 
@@ -167,20 +178,8 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
     pool = &user_pool;
 
-    /* Deleting page from frame_table, swap, and page_table */
-
-    int frame_index = frame_find_kpage (pages);
-    block_sector_t swap_index = swap_find_sector (pages);
     
-    if (frame_index != -1)
-      frame_clean (frame_index);
-    else if (swap_index != SWAP_SIZE + 1)
-      swap_nullify (swap_index);
-
-    struct page *p = page_lookup (pages, true);
-    pagedir_clear_page(active_pd(), p->upage);
-
-    p->kpage = NULL;
+    //lock_release(&pLock);
 
     //p = page_lookup (pages, true);
     

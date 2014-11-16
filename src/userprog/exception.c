@@ -173,16 +173,16 @@ page_fault (struct intr_frame *f)
   }*/
 
     if (!user && not_present) {
-      //printf("hey %p %p %p\n\n\n\n\n\n\n\n\n", fault_addr, blah->myEsp, f->esp);
+     //  printf("hey %p %p %p\n\n\n\n\n\n\n\n\n", fault_addr, blah->myEsp, f->esp);
       fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
 
       page_insert (fault_addr, NULL);
         /* Get the page to set its attributes */
-        p = page_lookup (fault_addr, false);
+        p = page_lookup (fault_addr, false, thread_current());
         
         /* If unsuccessful after insertion, check insertion method*/
         if (p == NULL) {
-          //printf("killing\n");
+          printf("killed because of kernel address: %p, esp: %p\n");
           kill (f);
         }
 
@@ -203,11 +203,11 @@ pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
 return;
       
     }
-  // if (!not_present) {
-  //   //printf("fault addr %p\n", fault_addr);
-  //   //debug_backtrace();
-  //   //PANIC ("i died");
-  // }
+  if (!not_present) {
+    //printf("fault addr %p\n", fault_addr);
+    //debug_backtrace();
+    //PANIC ("i died");
+  }
 
     if (!not_present) {
       //printf("killing\n");
@@ -234,16 +234,19 @@ return;
   if (user && not_present) {
 
     /* Checks if buffer doesn't have anything in it */
-    if (fault_addr == NULL) {      
+    if (fault_addr == NULL) {   
+      debug_backtrace();
+      printf("killed because address is NULL\n");   
       kill(f);
     }
     else if (is_kernel_vaddr(fault_addr)) {
-      //printf("kernel\n");
+      //debug_backtrace();
+      printf("killed because of kernel address: %p, esp: %p, kernel stack pointer %p\n", fault_addr, f->esp, blah->myEsp);
       kill (f);
     }
 
     /* If could not find page in page directory, search in supplemental page table */
-    p = page_lookup (fault_addr, false);
+    p = page_lookup (fault_addr, false, thread_current());
     //printf("p->upage %p\n", p->upage);
 
     /* If it is not in the supplemental page table*/
@@ -254,11 +257,13 @@ return;
         /* Add to supplemental page table */
         page_insert (fault_addr, NULL);
         /* Get the page to set its attributes */
-        p = page_lookup (fault_addr, false);
+        p = page_lookup (fault_addr, false, thread_current());
         
         /* If unsuccessful after insertion, check insertion method*/
-        if (p == NULL)
+        if (p == NULL){
+          printf("killed because page is NULL\n");          
           kill (f);
+        }
 
         /* Set attributes */
         p->isStack = 1;
@@ -277,6 +282,7 @@ return;
       else
       {
      //  printf("Are you here? \n");
+        printf("killed because of bad stack growth\n");
         kill (f);
       }
 
@@ -297,6 +303,7 @@ return;
 
       /* Load the page to memory, if cannot, kill */
       if (page_load (p, kpage) == false) {
+        printf("killed because can't load page \n");
         kill (f);
       }
 
@@ -304,7 +311,7 @@ return;
       page_insert(fault_addr, kpage);
       /* Update the page directory with new page*/
       pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
-      //printf("going to return\n");
+      // printf("going to return\n");
       return;
     }
     

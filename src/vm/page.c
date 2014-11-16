@@ -27,6 +27,8 @@
 #include "vm/swap.h"
 #include "lib/kernel/hash.h"
 
+struct lock Lock;
+
 /* Returns a hash value for page p. */
 unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
@@ -47,6 +49,7 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 }
 
 void supplemental_init() {
+  lock_init(&Lock);
   hash_init (&(thread_current()->page_table), page_hash, page_less, NULL);
 }
 
@@ -54,7 +57,7 @@ bool page_insert (void *upage, void * kpage)
 {
   struct page *p;
 
-  if ((p = page_lookup (upage, false)) != NULL)
+  if ((p = page_lookup (upage, false, thread_current())) != NULL)
   {
     page_update (p, kpage);
     return true;
@@ -84,7 +87,7 @@ bool page_update (struct page *p, void *kpage) {
 
 bool page_delete (void * kpage)
 {
-  struct page *p = page_lookup (kpage, true);
+  struct page *p = page_lookup (kpage, true, thread_current());
 
   if (hash_delete (&(thread_current()->page_table), &p->hash_elem) == NULL)
     return false;
@@ -129,25 +132,31 @@ page_load (struct page *p, void *kpage)
 /* Returns the page containing the given virtual address,
    or a null pointer if no such page exists. */
 struct page *
-page_lookup (void * addr, bool kpage)
+page_lookup (void * addr, bool kpage, struct thread *t)
 {
+  //lock_acquire (&Lock);
   struct hash_iterator i;
 
-  hash_first (&i, &(thread_current()->page_table));
+  hash_first (&i, &(t->page_table));
   while (hash_next (&i))
   {
     struct page *p = hash_entry (hash_cur (&i), struct page, hash_elem);
     
     if (kpage) {
-      if (p->kpage == addr)
+      if (p->kpage == addr){
+        //lock_release (&Lock);
         return p;
+      }
     }
     else {
-      if (p->upage == addr)
+      if (p->upage == addr){
+        //lock_release (&Lock);
         return p;
+      }
     }
   }
 
+  //lock_release (&Lock);
   return NULL;
 }
 

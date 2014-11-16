@@ -13,9 +13,11 @@ struct frame_entry{			/* Entry struct to put in the frame atable array */
   bool isAllocated;			/* Indicate if already in use */
   int clockbit;	     		/* Clock bit for clock algorithm */
   bool isStack;             /* Is this a stack page? */
+  struct thread *owner;	    /* thread for frame */
+  bool notevictable; 			/* sets whether the frame can be evicted or not */
 };
 
-struct frame_entry *getFrameEntry (void);
+struct frame_entry *frame_getEntry (void *);
 void frametable_init (void);
 void frame_put (void *);
 void frame_evict (void);
@@ -23,5 +25,6 @@ int frame_find_kpage (void *);
 void frame_clean(int);
 void frame_null (struct frame_entry *);
 void frame_stack (bool , void *);
+void free_frame (void *, struct thread *);
 
 #endif

@@ -50,6 +50,7 @@ struct block
 
 static struct swap_frame * swap_table[SWAP_SIZE];
 struct block * b;
+struct lock Lock;
 
 
 
@@ -57,6 +58,7 @@ struct block * b;
 void 
 swap_init ()
 {
+  lock_init(&Lock);
   unsigned int i;
   for(i = 0; i < SWAP_SIZE; i++) {
     swap_table[i] = (struct swap_frame *) malloc (sizeof (struct swap_frame));
@@ -65,22 +67,29 @@ swap_init ()
 }
 
 bool 
-swap_write (void *kpage)
+swap_write (void *kpage, struct thread *owner)
 {
-
+  struct frame_entry *frame = frame_getEntry (kpage);
+  frame->notevictable = 1;
+  
   //printf("in swap write\n");
   b = block_get_role (BLOCK_SWAP);
 
   if (b == NULL)
+  {
     return false;
-
+  }
+  lock_acquire(&Lock);
   block_sector_t sector_num = swap_get_free ();
-
+  lock_release(&Lock);
   if (sector_num == SWAP_SIZE + 1)
+  {
     PANIC ("No free sectors!");
+  }
   else
   {
-    struct page *p = page_lookup (kpage, 1);
+    struct page *p = page_lookup (kpage, 1, owner);
+    
 
     p->page = PAGE_SWAP;
     //printf("Setting to page swap!!! \n");
@@ -91,18 +100,21 @@ swap_write (void *kpage)
     int page_size = 0;
 
     while (page_size < PGSIZE) {
+      //printf("pagesize: %d\n", page_size);
       block_write (b, sector_num, kpage + page_size);
       
       swap_table[sector_num]->inUse = 1;
       swap_table[sector_num]->kpage = kpage;
       
       page_size += BLOCK_SECTOR_SIZE;
+      //printf("pagesize2: %d\n", page_size);
       sector_num++;
 
     }
   }
 
   //hex_dump(kpage, kpage, 1024, true);
+  frame->notevictable = 0;
   return true;
 
 }
@@ -110,22 +122,25 @@ swap_write (void *kpage)
 bool 
 swap_read (block_sector_t sector_num, void *kpage)
 {
+  //lock_acquire(&Lock);
 
+  struct frame_entry *frame = frame_getEntry (kpage);
+  frame->notevictable = 1;
   //printf("in swap read\n");
   b = block_get_role (BLOCK_SWAP);
 
-  if (b == NULL)
+  if (b == NULL || sector_num == SWAP_SIZE + 1)
+  {
+    //lock_release(&Lock);
     return false;
-
-  if (sector_num == SWAP_SIZE + 1)
-    return false;
+  }
 
   else 
   {
     int page_size = 0; 
 
     while (page_size < PGSIZE) {
-      block_read (b, sector_num, (uint32_t) kpage + page_size);
+      block_read (b, sector_num, kpage + page_size);
       //printf("Block has been read in\n");
       swap_nullify (sector_num);
       //printf("Swap block was nullified in swap table\n");
@@ -136,7 +151,8 @@ swap_read (block_sector_t sector_num, void *kpage)
   }
 
   //hex_dump(kpage, kpage, 64, true);
-
+  //lock_release(&Lock);
+  frame->notevictable = 0;
 	return true;
 }
 

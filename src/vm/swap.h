@@ -13,7 +13,7 @@ struct swap_frame {
 
 
 void swap_init (void);
-bool swap_write (void *kpage);
+bool swap_write (void *kpage, struct thread *);
 bool swap_read (block_sector_t sector_num, void *kpage);
 block_sector_t swap_get_free (void);
 block_sector_t swap_find_sector (void *kpage);

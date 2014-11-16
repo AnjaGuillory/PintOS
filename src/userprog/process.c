@@ -184,7 +184,6 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
-
   struct thread *cur = thread_current ();
   uint32_t *pd;
   
@@ -547,7 +546,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       //printf("read_bytes %d\n", page_read_bytes);
       success = page_insert (upage, NULL);
 
-      struct page *p = page_lookup(upage, false);
+      struct page *p = page_lookup(upage, false, thread_current());
 
        //printf("Load Segment // p->upage is: %p\n", p->upage);
 
@@ -600,7 +599,7 @@ setup_stack (char *file_name, void **esp)
         *esp = PHYS_BASE;
 
         /* It is a stack page */
-        struct page *p = page_lookup (upage, false);
+        struct page *p = page_lookup (upage, false, thread_current());
         p->isStack = 1;
       }
       else

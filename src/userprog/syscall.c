@@ -15,6 +15,8 @@
 #include "userprog/process.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "vm/frame.h"
+#include "vm/page.h"
 
 /* Andrea drove here */
 
@@ -68,6 +70,7 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   /* Andrea and Anja drove here */
+  // printf("IN SYSCALL \n\n");
   int * myEsp = f->esp;
   struct thread *cur = thread_current ();
 
@@ -212,6 +215,9 @@ int write (int fd, const void *buffer, unsigned size) {
   int charWritten = 0;
   
   /* Anja drove here */
+  struct page *p = page_lookup(buffer, false, thread_current());
+  struct frame_entry *f = frame_getEntry(p->kpage);
+  f->notevictable = 1;
 
   /* Check if we need to write to a file */
   if (fd > 1){
@@ -228,8 +234,10 @@ int write (int fd, const void *buffer, unsigned size) {
     if (fil == NULL)
       return -1;
 
+    
     /* Writes to the file and puts number of written characters */
     charWritten = file_write (fil, (char *) buffer, size);
+    
   }
 
   /* Andrea drove here */
@@ -258,6 +266,7 @@ int write (int fd, const void *buffer, unsigned size) {
   }
 
   /* Number of chars written */
+  f->notevictable = 0;
   return charWritten;
 }
 
@@ -287,6 +296,9 @@ int open (const char *file)  {
   }
 
   lock_acquire (&Lock);
+  struct page *p = page_lookup(file, false, thread_current());
+  struct frame_entry *f = frame_getEntry(p->kpage);
+  f->notevictable = 1;
   
   /* Opens the file */
   struct file *openFile = filesys_open (file);
@@ -322,6 +334,7 @@ int open (const char *file)  {
   /* Adds the next index to the list of open fds for the thread */
   list_push_back (&cur->open_fd, &fil->elms);
 
+  f->notevictable = 0;
   return fd;
 }
 
@@ -370,13 +383,16 @@ void seek (int fd, unsigned position) {
 /* Anja drove here */
 bool remove (const char *file) {
   lock_acquire(&Lock);
+  struct page *p = page_lookup(file, false, thread_current());
+  struct frame_entry *f = frame_getEntry(p->kpage);
+  f->notevictable = 1;
 
   /* Returns true if able to remove the file.
     Only prevents file from being opened again */
   int flag = filesys_remove (file);
   
+  f->notevictable = 0;
   lock_release (&Lock);
-
   return flag;
 }
 
@@ -417,11 +433,11 @@ int read (int fd, void *buffer, unsigned size)
   int charsRead = 0;
 
   /* Checks buffer for a bad pointer */
-  if(checkPointer (buffer) == -1 || strlen(buffer) < size)
-  {
-    exit(-1);
-  }
-  
+  int check = checkPointer (buffer);
+
+  struct page *p = page_lookup(buffer, false, thread_current());
+  struct frame_entry *f = frame_getEntry(p->kpage);
+  f->notevictable = 1;
   /* Checks if getting input */
   if (fd == 0) {
     
@@ -451,6 +467,7 @@ int read (int fd, void *buffer, unsigned size)
   }
 
   /* Return number of chars read */
+  f->notevictable = 0;
   return charsRead;
 }
 
@@ -461,6 +478,10 @@ pid_t exec (const char *cmd_line)
   /* Checks if cmd_line is valid */
   if(checkPointer (cmd_line) == -1)
     return -1;
+
+  struct page *p = page_lookup(cmd_line, false, thread_current());
+  struct frame_entry *f = frame_getEntry(p->kpage);
+  f->notevictable = 1;
   
   struct thread *cur = thread_current ();
   pid_t result;
@@ -473,7 +494,7 @@ pid_t exec (const char *cmd_line)
   if (result == TID_ERROR) {
     return -1;
   }
-
+  f->notevictable = 0;
   /* Parent waits until the child indicates if it has loaded */
   sema_down (&cur->complete);
   lock_release (&Lock);

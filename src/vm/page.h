@@ -35,7 +35,7 @@ void supplemental_init(void);
 bool page_insert (void *, void *);
 bool page_update (struct page *, void *);
 bool page_delete (void *);
-struct page * page_lookup (void *, bool);
+struct page * page_lookup (void *, bool, struct thread *);
 unsigned page_hash (const struct hash_elem *, void *);
 bool page_load (struct page *, void *);
 void page_destroy (void);
