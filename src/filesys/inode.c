@@ -160,12 +160,10 @@ inode_open (block_sector_t sector)
   int i;
   for (i = 0; original > 0; i++)
   {
-    // if ()
-
     if (inode->firstLevel == NULL)
     {
+      printf("Hello!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
       inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
-      //compute(inode->firstLevel, inode);
       inode->firstLevel->sector = (inode->sector) + 10;
       
       block_read (fs_device, inode->firstLevel->sector, &inode->firstLevel->data);
@@ -196,7 +194,6 @@ inode_open (block_sector_t sector)
         inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 1024;
 
       block_read (fs_device, inode->secondLevel->level[i]->sector, &inode->secondLevel->level[i]->data);
-      //original -= (BLOCK_SECTOR_SIZE*1024)
 
       if (original > (BLOCK_SECTOR_SIZE*1024))
       {
@@ -212,40 +209,6 @@ inode_open (block_sector_t sector)
   }
   
   return inode;
-}
-
-struct firstIB *
-compute (struct firstIB * indirect, struct inode * inode)
-{
-  /*if ()*/
-  //{
-    //struct indirect->sector
-
-
-    inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
-    inode->firstLevel->sector = (inode->sector) + 10;
-    
-    block_read (fs_device, inode->firstLevel->sector, &inode->firstLevel->data);
-    
-    inode->data.length -= (BLOCK_SECTOR_SIZE*10);
-    inode->firstLevel->data.length = (BLOCK_SECTOR_SIZE*10);
-    
-    inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
-  //}
-  else
-    {
-      inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
-
-      if (i == 0)
-        inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 10;
-      else
-        inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 10;
-
-      block_read (fs_device, inode->secondLevel->level[i]->sector, &inode->secondLevel->level[i]->data);
-      
-      inode->data.length -= (BLOCK_SECTOR_SIZE*10);
-      inode->secondLevel->level[i]->data.length = (BLOCK_SECTOR_SIZE*10);
-    }
 }
 
 /* Reopens and returns INODE. */
