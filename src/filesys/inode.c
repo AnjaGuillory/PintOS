@@ -3,6 +3,7 @@
 #include <debug.h>
 #include <round.h>
 #include <string.h>
+#include <stdio.h>
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
@@ -28,6 +29,18 @@ bytes_to_sectors (off_t size)
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
 
+struct firstIB
+  {
+    struct inode_disk data;
+    block_sector_t sector;
+  };
+
+struct secondIB
+  {
+    struct firstIB *level[4];
+    block_sector_t sector;
+  };
+
 /* In-memory inode. */
 struct inode 
   {
@@ -37,6 +50,8 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+    struct firstIB *firstLevel;
+    struct secondIB *secondLevel;
   };
 
 /* Returns the block device sector that contains byte offset POS
@@ -104,7 +119,7 @@ inode_create (block_sector_t sector, off_t length)
     }
   return success;
 }
-
+void * compute (void * indirect, struct inode * inod);
 /* Reads an inode from SECTOR
    and returns a `struct inode' that contains it.
    Returns a null pointer if memory allocation fails. */
@@ -137,8 +152,100 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  inode->firstLevel = NULL;
   block_read (fs_device, inode->sector, &inode->data);
+
+  size_t original = inode->data.length;
+
+  int i;
+  for (i = 0; original > 0; i++)
+  {
+    // if ()
+
+    if (inode->firstLevel == NULL)
+    {
+      inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
+      //compute(inode->firstLevel, inode);
+      inode->firstLevel->sector = (inode->sector) + 10;
+      
+      block_read (fs_device, inode->firstLevel->sector, &inode->firstLevel->data);
+      
+      inode->data.length = (BLOCK_SECTOR_SIZE*10);
+      original -= (BLOCK_SECTOR_SIZE*10);
+
+      if (original > (BLOCK_SECTOR_SIZE*1024))
+      {
+        inode->firstLevel->data.length = (BLOCK_SECTOR_SIZE*1024);
+        original -= (BLOCK_SECTOR_SIZE*1024);
+      }
+      else {
+        inode->firstLevel->data.length = original;
+        original = 0;
+      }
+      
+      inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
+      i--;
+    }
+    else
+    {
+      inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
+
+      if (i == 0)
+        inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 1024;
+      else
+        inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 1024;
+
+      block_read (fs_device, inode->secondLevel->level[i]->sector, &inode->secondLevel->level[i]->data);
+      //original -= (BLOCK_SECTOR_SIZE*1024)
+
+      if (original > (BLOCK_SECTOR_SIZE*1024))
+      {
+        inode->secondLevel->level[i]->data.length = (BLOCK_SECTOR_SIZE*1024);
+        original -= (BLOCK_SECTOR_SIZE*1024);
+      }
+      else
+      {
+        inode->secondLevel->level[i]->data.length = original;
+        original = 0;
+      }      
+    }
+  }
+  
   return inode;
+}
+
+struct firstIB *
+compute (struct firstIB * indirect, struct inode * inode)
+{
+  /*if ()*/
+  //{
+    //struct indirect->sector
+
+
+    inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
+    inode->firstLevel->sector = (inode->sector) + 10;
+    
+    block_read (fs_device, inode->firstLevel->sector, &inode->firstLevel->data);
+    
+    inode->data.length -= (BLOCK_SECTOR_SIZE*10);
+    inode->firstLevel->data.length = (BLOCK_SECTOR_SIZE*10);
+    
+    inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
+  //}
+  else
+    {
+      inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
+
+      if (i == 0)
+        inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 10;
+      else
+        inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 10;
+
+      block_read (fs_device, inode->secondLevel->level[i]->sector, &inode->secondLevel->level[i]->data);
+      
+      inode->data.length -= (BLOCK_SECTOR_SIZE*10);
+      inode->secondLevel->level[i]->data.length = (BLOCK_SECTOR_SIZE*10);
+    }
 }
 
 /* Reopens and returns INODE. */

@@ -1,0 +1,173 @@
+10/8, 2:00-6:00, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/9, 4:00-7:30, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/10, 2:00-7:00, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/11, 10:00-3:00, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
+10/12, 2:00-5:30, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
+10/13, 12:00-2:30, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/14, 5:00-8:00, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
+10/15, 5:30-7:00, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/17, 5:00-8:00, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/18, 10:00-2:00, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Anja, 30 minutes
+Andrea, 30 minutes
+Dara, 30 minutes
+Anja, 30 minutes
+Andrea, 30 minutes
+Dara, 30 minutes
+Anja, 30 minutes
+
+10/19, 2:00-6:00, Drivers: Anja, Andrea, Dara
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/20, 5:30-8:00, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Dara, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+
+10/21, 5:00-8:00, Drivers: Anja, Andrea, Dara
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
+10/22, 5:30-9:00, Drivers: Anja, Andrea, Dara
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+Andrea, 30 minutes
+Anja, 30 minutes
+Dara, 30 minutes
+
+
+So far what was done:
+An argument list was declared inside of thread struct that holds a list of argument structures. These argument structures hold a list element and the actual argument string. While parsing the command line, we declare an argument struct for each argument and initialize these char arguments to the tokens that are parsed. We are trying to print these out, however this is where we are stuck. 
+
+After speaking with Jon, we are overcomplicating things. Instead of doing EVERYTHING in setup_stack() such as setting up the stack arguments and pushing them in. We can just create a new function to do exactly this and call it IN setup_stack().
+
+This way, we can make a new function that also takes file_name, and esp, parses file_name, and for each token just push it on to the stack. This way we do not have to book keep every argument! We just have to take into account the order somehow. But we can figure this out later!
+
+
+UPDATED!
+
+The argument struct, arguments list and arg_elem in threads are deleted.
+Now, a new function called the_stack(file_name,esp) is created. Here we set up the program stack by incrementing and decrementing esp, as well as a temporary register in order to copy the parsed tokens onto the stack, and then copy the addresses of the arguments appropriately and orderly. Before this procedure, we parse the command line in this function also. 
+
+Currently, we do not have any recordings of what the stack pointer and arguments statuses are. 
+
+LATEST UPDATE
+ 
+ Added a list of children (as well as child list element) to bookkeep each threads' children. Also, in thread_create, we added a push to this list the child that the current process is creating. In thread_init, we initialize the parent thread's list of children. This was created so that upon waiting for a child, we can access the child's information to wait for by identifying it by the tid that is passed into the wait method.
+
+
+ For exit (and wait), implement a marker to tell if a child's parent is waiting or not in order to send an exit status to a parent or just the kernel. 
+
+UPDATE:
+
+We added create and open. The currently added function return values are put into EAX in the switch cases. 
+Create causes some compiling errors. Open just gets the name of the file and creates a file struct. It 
+checks to see if the file struct is null (so error if so), otherwise returns 0. We need to figure out how to 
+implement a file descriptor that does not use the reserved 0 and 1 for console. 
+
+
+UPDATE 10/17
+
+We made a list of available fd positions and an array of file structs that hold the opened file and hold file descriptors. This is so that we can keep up with amount of files opened (which can only reach up to 128 open files) and to keep up with available file descriptors that can be used. This helps to quicken the process instead of searching the the 128 sized array for an open index as a file descriptor. All of create tests work. All open and Write tests work except for:
+open-bad-ptr, open-null, and write-bad-fd, write-bad-ptr, write-stdin
+exit works as well, but halt does not work.
+
+We created a global_status that takes the status inputed into exit, so that after exiting, f->eax will take the exit value and hold it for the parent. 
+
+In write, we check if the buffer address is kernel address, unallocated (We think that lookup_page checks if address is unallocated), or null, and in these cases it will exit. If open file is null, it exits. If creation is null, it will also exit. 
+
+UPDATE 10/18
+
+We added an int position to keep the next position at the end of the array of files. This is to keep up with how many files are in the array and also to keep track of how files are allocated. The fd list remains, so as to attain an open fd to use and place a newly opened file within the position of the array equal to fd.
+
+We have implemented close, remove, tell, and seek, however without having wait fully implemented it is hard to tell what works or not.  We added checkers for null files and pointers, but the tests still don't properly work. We check for bad fd's and back pointer to files for fd's, however these also do not work. 
+
+When open is called, the file is placed and the fd is set, and position is incremented to get to the next null index in the files array. When close is called, the position of fd within files is nullified, and then fd is added into the list of available fd's. We check if position tries to increment above 127 in the error checker for openFile and fil->fd, and in this case, the preallocated page is freed and the system call returns -1. The fd remains free, until the next opened file takes it.

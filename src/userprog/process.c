@@ -19,10 +19,6 @@
 #include "threads/vaddr.h"
 #include "kernel/list.h"
 #include "threads/synch.h"
-#include "vm/page.h"
-#include "vm/frame.h"
-#include "vm/swap.h"
-#include "threads/malloc.h"
 
 /*Driver: Anja*/
 
@@ -74,8 +70,7 @@ start_process (void *file_name_)
 
   token = strtok_r(str1, " ", &saveptr1);
 
-  supplemental_init ();
-
+  //printf("FILENAME in start %s\n", file_name);
   struct intr_frame if_;
   bool success;
 
@@ -184,6 +179,7 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
+
   struct thread *cur = thread_current ();
   uint32_t *pd;
   
@@ -220,9 +216,6 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-  /* Destroy hash table for dying thread */
-  page_destroy ();
-
   struct thread *parent = cur->parent;
   struct list children_list = parent->children;
 
@@ -254,7 +247,6 @@ process_activate (void)
 
   /* Activate thread's page tables. */
   pagedir_activate (t->pagedir);
-  //supplemental_init(t->page_table);
 
   /* Set thread's kernel stack for use in processing
      interrupts. */
@@ -338,6 +330,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, const char *command, void (**eip) (void), void **esp) 
 {
+
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -351,7 +344,6 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
-
   process_activate ();
 
   lock_acquire(&Lock);
@@ -453,7 +445,10 @@ load (const char *file_name, const char *command, void (**eip) (void), void **es
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   
+  //printf("about to sema up\n");
   sema_up(&(t->parent)->complete);
+  thread_yield();
+  //printf("im back from thread_yield() %s\n", t->name);
   
   return success;
 }
@@ -530,47 +525,40 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   file_seek (file, ofs);
-  
-  bool success = 0;
-
   while (read_bytes > 0 || zero_bytes > 0) 
     {
-
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Insert new page into supplemental page table */
-      success = page_insert (upage, NULL);
+      /* Get a page of memory. */
+      uint8_t *kpage = palloc_get_page (PAL_USER);
+      if (kpage == NULL)
+        return false;
 
-      /* Get newly created page */
-      struct page *p = page_lookup(upage, false, thread_current());
-      
-      /* Update its contents */
-      p->page = PAGE_FILESYS;
-      p->file = file;
-      p->ofs = ofs;
-      p->writable = writable;
+      /* Load this page. */
+      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+        {
+          palloc_free_page (kpage);
+          return false; 
+        }
+      memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      if (zero_bytes == PGSIZE)
-        p->isZero = true;
-      else
-        p->isZero = false;
-      
-      p->read_bytes = page_read_bytes;
-      p->zero_bytes = page_zero_bytes;
-
+      /* Add the page to the process's address space. */
+      if (!install_page (upage, kpage, writable)) 
+        {
+          palloc_free_page (kpage);
+          return false; 
+        }
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
-      ofs += page_read_bytes; /* Next time read from next available offset */
     }
-
-  return success;
+  return true;
 }
 
 /* Create a minimal stack by mapping a zeroed page at the top of
@@ -584,17 +572,9 @@ setup_stack (char *file_name, void **esp)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-
-      void * upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
-      success = install_page (upage, kpage, true);
-      
-      if (success) {
+      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      if (success)
         *esp = PHYS_BASE;
-
-        /* It is a stack page */
-        struct page *p = page_lookup (upage, false, thread_current());
-        p->isStack = 1;
-      }
       else
         palloc_free_page (kpage);
     }
@@ -620,18 +600,8 @@ install_page (void *upage, void *kpage, bool writable)
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  bool flag = (pagedir_get_page (t->pagedir, upage) == NULL
+  return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
-
-  if(flag){
-    flag = page_insert(upage, kpage);
-  }
-  else {
-    frame_clean(frame_find_kpage(kpage));
-  }
-
-  return flag;
-
 }
 
 
@@ -647,6 +617,7 @@ void the_stack(char *file_name, void **esp)
   /* Make a copy of file_name */
   strlcpy (str1, file_name, PGSIZE);
 
+  //printf("original esp %p\n", myEsp);
 
   /* Break file_name into tokens using
   * "/bin/ls -l foo bar" - > "/bin/ls", "-l", "foo", "bar"
@@ -669,18 +640,21 @@ void the_stack(char *file_name, void **esp)
     myEsp -= strlen(token[s]) + 1;
     argv[s] = myEsp;
     memcpy(myEsp, token[s], strlen(token[s]) + 1);
+    //printf("%p, argv[%d] '%s' char[%d]\n", myEsp, s, token[s], strlen(token[s]) +1);
   }
 
+  //printf("length: %d\n", argc);
 
   /* Null Sentinel */
   argv[argc] = 0;
 
   /* Align to word size */
   int x = (unsigned int)myEsp % 4;
-
+  //printf("%i\n", x);
   if (x != 0)
   {
     myEsp -= x;
+    // memcpy(myEsp, &argv[argc], x);
   }
 
   /* Push the addresses of args onto the stack */
@@ -688,24 +662,27 @@ void the_stack(char *file_name, void **esp)
   for (j = argc; j >= 0; j--) 
   {
     myEsp -= sizeof(char *);
+    //printf("%p, argv[%d] '%p' char*\n", myEsp, j, argv[j]);
     memcpy(myEsp, &argv[j], sizeof(char *));
   }
 
-  /* Push argv */
+  // Push argv
   char * tempEsp = myEsp;
   myEsp -= sizeof(char **);
   memcpy(myEsp, &tempEsp, sizeof(char **));
 
-  /* Push argc */
+  // Push argc 
   myEsp -= sizeof(int);
   memcpy(myEsp, &argc, sizeof(int));
 
-  /* Push return address */
+  // Push return address
   myEsp -= sizeof(char *);
   memcpy(myEsp, &argv[argc], sizeof(char *));
 
   /* Set esp back */
   *esp = myEsp;
+ // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
   /* Free pages */
   palloc_free_page(argv);

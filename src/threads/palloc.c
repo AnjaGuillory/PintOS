@@ -10,10 +10,6 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "vm/frame.h"
-#include "vm/page.h"
-#include "vm/swap.h"
-#include "userprog/pagedir.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -44,15 +40,14 @@ static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
 static bool page_from_pool (const struct pool *, void *page);
 
-struct lock pLock;
-
 /* Initializes the page allocator.  At most USER_PAGE_LIMIT
    pages are put into the user pool. */
+
+/*** INITIALIZES USER ALLOCATOR ***/
 void
 palloc_init (size_t user_page_limit)
 {
   /* Free memory starts at 1 MB and runs to the end of RAM. */
-  lock_init(&pLock);
   uint8_t *free_start = ptov (1024 * 1024);
   uint8_t *free_end = ptov (init_ram_pages * PGSIZE);
   size_t free_pages = (free_end - free_start) / PGSIZE;
@@ -89,36 +84,14 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   lock_release (&pool->lock);
 
   if (page_idx != BITMAP_ERROR)
-  {
-    lock_acquire(&pLock);
     pages = pool->base + PGSIZE * page_idx;
-    lock_release(&pLock);
-  }
-  else {
-    if (flags & PAL_USER)
-    {
-      frame_evict();
-
-      lock_acquire (&pool->lock);
-      page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
-      lock_release (&pool->lock);
-
-      lock_acquire(&pLock);
-      pages = pool->base + PGSIZE * page_idx;
-      lock_release(&pLock);
-    }
-    else
-      pages = NULL;
-  }
+  else
+    pages = NULL;
 
   if (pages != NULL) 
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
-      if (flags & PAL_USER) {
-        /* If case of user needing a frame, get one  */
-        frame_put (pages);
-      }
     }
   else 
     {
@@ -155,10 +128,8 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
   if (page_from_pool (&kernel_pool, pages))
     pool = &kernel_pool;
-  else if (page_from_pool (&user_pool, pages)) 
-  {
+  else if (page_from_pool (&user_pool, pages))
     pool = &user_pool;
-  }
   else
     NOT_REACHED ();
 

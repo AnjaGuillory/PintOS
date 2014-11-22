@@ -3,15 +3,8 @@
 #include <stdio.h>
 #include "userprog/gdt.h"
 #include "userprog/syscall.h"
-#include "userprog/pagedir.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "threads/palloc.h"
-#include "threads/vaddr.h"
-#include "vm/frame.h"
-#include "vm/page.h"
-#include "threads/vaddr.h"
-
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -97,7 +90,7 @@ kill (struct intr_frame *f)
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
-      exit (-1); 
+      thread_exit (); 
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.
@@ -112,7 +105,7 @@ kill (struct intr_frame *f)
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
-      exit (-1);
+      thread_exit ();
     }
 }
 
@@ -130,12 +123,11 @@ kill (struct intr_frame *f)
 static void
 page_fault (struct intr_frame *f) 
 {
-
   bool not_present;  /* True: not-present page, false: writing r/o page. */
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
-  
+
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
      data.  It is not necessarily the address of the instruction
@@ -157,114 +149,6 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /*** Dara drove here ***/
-  struct page *p;
-
-  if (!user && not_present) {
-    fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
-    page_insert (fault_addr, NULL);
-        
-    /* Get the page to set its attributes */
-    p = page_lookup (fault_addr, false, thread_current());
-
-    /* If unsuccessful after insertion, check insertion method*/
-    if (p == NULL)
-      kill (f);
-
-    /* Set attributes */
-    p->isStack = 1;
-    p->writable = 1;
-    p->isZero = true;
-    p->read_bytes = PGSIZE;
-
-    void * kpage = palloc_get_page(PAL_USER);
-    frame_stack (p->isStack, kpage);
-    if (page_load (p, kpage) == false)
-      kill (f);
-
-    page_insert(fault_addr, kpage);
-    pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
-    return;
-  }
-
-  /* If writing to a read-only, then exit process */
-  if (!not_present)
-    exit(-1);
-  
-  /* Find how far below the fault addr is from f->esp */
-  int diff = fault_addr - f->esp;
-  if (diff < 0)
-    diff = diff * -1;
-  bool pusha = (diff >= 4) && (diff <= 32);
-  bool equal = fault_addr == f->esp;
-
-  fault_addr = (uint32_t) fault_addr & 0xFFFFF000;
-
-  /* If it is the user and the page is not accessed */
-  if (user && not_present) {
-
-    /* Checks if buffer doesn't have anything in it */
-    if (fault_addr == NULL) {      
-      kill(f);
-    }
-
-    if (is_kernel_vaddr(fault_addr))
-      kill (f);
-
-    /* If could not find page in page directory, search in supplemental page table */
-    p = page_lookup (fault_addr, false, thread_current());
-
-    /*** Andrea drove here ***/
-
-    /* If it is not in the supplemental page table*/
-    if (p == NULL) {
-      if (pusha || equal) {
-
-        /* Add to supplemental page table */
-        page_insert (fault_addr, NULL);
-        /* Get the page to set its attributes */
-        p = page_lookup (fault_addr, false, thread_current());
-
-        /* If unsuccessful after insertion, check insertion method*/
-        if (p == NULL)
-          kill (f);
-
-        /* Set attributes */
-        p->isStack = 1;
-        p->writable = 1;
-        p->isZero = true;
-        p->read_bytes = PGSIZE;
-
-      }
-
-      /* If the address is not valid, kill process */
-      else
-        kill (f);
-    }
-
-    /*** Anja drove here ***/
-
-    /* If the mapping is null, create a mapping */
-    if(p->kpage == NULL) {
-      void * kpage = palloc_get_page(PAL_USER);
-
-      /* Check if it is a stack page, and save this information*/
-      frame_stack (p->isStack, kpage);
-
-      /* Load the page to memory, if cannot, kill */
-      if (page_load (p, kpage) == false)
-        kill (f);
-
-      /* If load is successful, update supplemental in the insertion method */
-      page_insert(fault_addr, kpage);
-
-      /* Update the page directory with new page*/
-      pagedir_set_page (active_pd(), fault_addr, kpage, p->writable);
-
-      return;
-    }
-  }
-
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
@@ -275,7 +159,7 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
 
   printf("There is no crying in Pintos!\n");
-  kill (f);
+  exit(-1);
 
 }
 
