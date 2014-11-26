@@ -54,6 +54,26 @@ struct inode
     struct secondIB *secondLevel;
   };
 
+static off_t
+total_length (const struct inode *inode)
+{
+  if (inode->firstLevel == NULL)
+    return inode->data.length;
+
+  off_t sum = 0;
+  sum += (inode->data.length + inode->firstLevel->data.length);
+
+  int i;
+  for (i = 0; i < 4; i++)
+  {
+    if (inode->secondLevel->level[i] == NULL)
+      return sum;
+    sum += inode->secondLevel->level[i]->data.length;
+  }
+
+  return sum;
+}
+
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
@@ -62,10 +82,36 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
-    return -1;
+  //sprintf("total length %d\n", total_length(inode));
+
+  off_t sum = 0;
+
+  if (pos < (off_t) total_length (inode))
+  {
+    if (pos < inode->data.length)
+      return inode->data.start + pos / BLOCK_SECTOR_SIZE;
+
+    sum += inode->data.length + inode->firstLevel->data.length;
+
+    if (pos < sum)
+      return inode->firstLevel->data.start + pos / BLOCK_SECTOR_SIZE;
+    else
+    {
+      int i;
+      for (i = 0; i < 4; i++) {
+        if (inode->secondLevel->level[i] != NULL) {
+          sum += inode->secondLevel->level[i]->data.length;
+           
+          if (pos < sum)
+            return inode->secondLevel->level[i]->data.start + pos / BLOCK_SECTOR_SIZE;
+        }
+        else
+          return -1;
+      }
+    }
+  }
+  
+  return -1;
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -117,6 +163,7 @@ inode_create (block_sector_t sector, off_t length)
         } 
       free (disk_inode);
     }
+
   return success;
 }
 void * compute (void * indirect, struct inode * inod);
@@ -158,15 +205,15 @@ inode_open (block_sector_t sector)
   size_t original = inode->data.length;
 
   int i;
-  for (i = 0; original > 0; i++)
+  for (i = 0; original > 5120; i++)
   {
     if (inode->firstLevel == NULL)
     {
-      printf("Hello!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
       inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
-      inode->firstLevel->sector = (inode->sector) + 10;
+      inode->firstLevel->sector = (inode->sector) + 11;
       
-      block_read (fs_device, inode->firstLevel->sector, &inode->firstLevel->data);
+      inode->firstLevel->data = inode->data;
+      inode->firstLevel->data.start = inode->firstLevel->sector;
       
       inode->data.length = (BLOCK_SECTOR_SIZE*10);
       original -= (BLOCK_SECTOR_SIZE*10);
@@ -182,6 +229,7 @@ inode_open (block_sector_t sector)
       }
       
       inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
+      inode->secondLevel->level[0] = NULL;
       i--;
     }
     else
@@ -189,11 +237,12 @@ inode_open (block_sector_t sector)
       inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
 
       if (i == 0)
-        inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 1024;
+        inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 1025;
       else
-        inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 1024;
+        inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 1025;
 
-      block_read (fs_device, inode->secondLevel->level[i]->sector, &inode->secondLevel->level[i]->data);
+      inode->secondLevel->level[i]->data = inode->data;
+      inode->secondLevel->level[i]->data.start = inode->secondLevel->level[i]->sector;
 
       if (original > (BLOCK_SECTOR_SIZE*1024))
       {
@@ -204,7 +253,12 @@ inode_open (block_sector_t sector)
       {
         inode->secondLevel->level[i]->data.length = original;
         original = 0;
-      }      
+      } 
+
+      if (i != 4)
+      {
+        inode->secondLevel->level[i+1] = NULL;
+      }     
     }
   }
   
@@ -411,5 +465,5 @@ inode_allow_write (struct inode *inode)
 off_t
 inode_length (const struct inode *inode)
 {
-  return inode->data.length;
+  return total_length (inode);
 }
