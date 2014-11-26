@@ -31,14 +31,14 @@ bytes_to_sectors (off_t size)
 
 struct firstIB
   {
-    struct inode_disk data;
-    block_sector_t sector;
+    struct inode_disk data;             /* Inode content */
+    block_sector_t sector;              /* Disk location */
   };
 
 struct secondIB
   {
-    struct firstIB *level[4];
-    block_sector_t sector;
+    struct firstIB *level[4];           /* Array of first level indirect blocks */
+    block_sector_t sector;              /* Disk location, don't need? */
   };
 
 /* In-memory inode. */
@@ -54,18 +54,24 @@ struct inode
     struct secondIB *secondLevel;
   };
 
+
+/* Returns the total length of the file, 
+  takes into account the indirect blocks */
 static off_t
 total_length (const struct inode *inode)
 {
+  /* Checks if indirect block was not needed */
   if (inode->firstLevel == NULL)
     return inode->data.length;
 
+  /* Keep track of current sum */
   off_t sum = 0;
   sum += (inode->data.length + inode->firstLevel->data.length);
 
   int i;
   for (i = 0; i < 4; i++)
   {
+    /* Checks if another indirect block was needed */
     if (inode->secondLevel->level[i] == NULL)
       return sum;
     sum += inode->secondLevel->level[i]->data.length;
@@ -82,27 +88,32 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
-  //sprintf("total length %d\n", total_length(inode));
 
-  off_t sum = 0;
+  off_t length = 0;
 
   if (pos < (off_t) total_length (inode))
   {
+    /* Checks if the position in the file is in
+      the inode data blocks, or one of the other 
+      indirect blocks */
     if (pos < inode->data.length)
       return inode->data.start + pos / BLOCK_SECTOR_SIZE;
 
-    sum += inode->data.length + inode->firstLevel->data.length;
+    /* If "pos" was not in the inode then add to length and compare */
+    length += inode->data.length + inode->firstLevel->data.length;
 
-    if (pos < sum)
+    /* In firstLevel indirect block */
+    if (pos < length)
       return inode->firstLevel->data.start + pos / BLOCK_SECTOR_SIZE;
     else
     {
+      /* In secondLevel indirect block */
       int i;
       for (i = 0; i < 4; i++) {
         if (inode->secondLevel->level[i] != NULL) {
-          sum += inode->secondLevel->level[i]->data.length;
+          length += inode->secondLevel->level[i]->data.length;
            
-          if (pos < sum)
+          if (pos < length)
             return inode->secondLevel->level[i]->data.start + pos / BLOCK_SECTOR_SIZE;
         }
         else
@@ -207,17 +218,22 @@ inode_open (block_sector_t sector)
   int i;
   for (i = 0; original > 5120; i++)
   {
+    /* Checks if first level indirect block has not been allocated */
     if (inode->firstLevel == NULL)
     {
       inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
       inode->firstLevel->sector = (inode->sector) + 11;
       
+      /* Point firstLevel data blocks to zeroed disk block */
       inode->firstLevel->data = inode->data;
       inode->firstLevel->data.start = inode->firstLevel->sector;
       
+      /* Change the length of original inode to reflect the other half
+        being in the indirect block */
       inode->data.length = (BLOCK_SECTOR_SIZE*10);
       original -= (BLOCK_SECTOR_SIZE*10);
 
+      /* Checks if file fills out the whole indirect block */
       if (original > (BLOCK_SECTOR_SIZE*1024))
       {
         inode->firstLevel->data.length = (BLOCK_SECTOR_SIZE*1024);
@@ -228,6 +244,7 @@ inode_open (block_sector_t sector)
         original = 0;
       }
       
+      /* Allocate secondLevel indirect in case it is needed */
       inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
       inode->secondLevel->level[0] = NULL;
       i--;
@@ -236,14 +253,17 @@ inode_open (block_sector_t sector)
     {
       inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
 
+      /* Which sector wa the last to be determined */
       if (i == 0)
         inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 1025;
       else
         inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 1025;
 
+      /* Point indirect block to disk */
       inode->secondLevel->level[i]->data = inode->data;
       inode->secondLevel->level[i]->data.start = inode->secondLevel->level[i]->sector;
 
+      /* Checks if file fills out the whole (current) indirect block */
       if (original > (BLOCK_SECTOR_SIZE*1024))
       {
         inode->secondLevel->level[i]->data.length = (BLOCK_SECTOR_SIZE*1024);
@@ -255,10 +275,9 @@ inode_open (block_sector_t sector)
         original = 0;
       } 
 
+      /* Make sure the next indirect block is not allocated */
       if (i != 4)
-      {
         inode->secondLevel->level[i+1] = NULL;
-      }     
     }
   }
   
