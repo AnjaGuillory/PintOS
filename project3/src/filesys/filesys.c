@@ -45,6 +45,8 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
+
+  printf("in filesys create, name: %s size: %d\n", name, initial_size);
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
   bool success = (dir != NULL
@@ -66,6 +68,7 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
+  printf("in filesys open, name: %s\n", name);
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
@@ -83,6 +86,7 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
+  printf("in filesys remove, name: %s\n", name);
   struct dir *dir = dir_open_root ();
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir); 
