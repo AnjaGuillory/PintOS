@@ -104,6 +104,7 @@ block_get_by_name (const char *name)
 static void
 check_sector (struct block *block, block_sector_t sector)
 {
+  printf("Sector: %d, block size %d\n", sector, block->size);
   if (sector >= block->size)
     {
       /* We do not use ASSERT because we want to panic here

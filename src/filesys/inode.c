@@ -52,7 +52,7 @@ struct inode
     struct inode_disk data;             /* Inode content. */
     struct firstIB *firstLevel;
     struct secondIB *secondLevel;
-    off_t original_length;               /* The original file size */
+    // off_t original_length;               /* The original file size */
   };
 
 
@@ -145,7 +145,7 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length)
 {
-  printf("in inode create with sector: %d %d\n", sector, length);
+  //printf("in inode create with sector: %d %d\n", sector, length);
   struct inode_disk *disk_inode = NULL;
   bool success = false;
 
@@ -174,6 +174,7 @@ inode_create (block_sector_t sector, off_t length)
             }
           success = true; 
         } 
+        //printf("length in create: %d\n\n\n\n\n\n\n", disk_inode->length);
       free (disk_inode);
     }
 
@@ -186,7 +187,8 @@ struct inode *
 inode_open (block_sector_t sector)
 {
 
-  printf("in inode open with sector: %d \n", sector);
+  //printf("in inode open with sector: %d \n", sector);
+
   struct list_elem *e;
   struct inode *inode;
 
@@ -195,6 +197,7 @@ inode_open (block_sector_t sector)
        e = list_next (e)) 
     {
       inode = list_entry (e, struct inode, elem);
+          //printf("inode sector: %d\n", inode->sector);
       if (inode->sector == sector) 
         {
           inode_reopen (inode);
@@ -216,9 +219,15 @@ inode_open (block_sector_t sector)
   inode->firstLevel = NULL;
   block_read (fs_device, inode->sector, &inode->data);
 
+  if (sector == 1)
+    //printf("sector is 1, length = %d\n", inode->data.length);
+
+  if (inode->data.length > 100000) {
+    inode->data.length = 10;
+      }
   size_t original = inode->data.length;
-  inode->original_length = original;
-  printf("inode original_length %d\n", inode->original_length);
+  //inode->original_length = original;
+  //printf("inode original_length %d\n", original);
 
   int i;
   for (i = 0; original > 5120; i++)
@@ -286,7 +295,7 @@ inode_open (block_sector_t sector)
     }
   }
   
-  printf("inode length %d\n", inode->data.length);
+  //printf("inode length %d\n", inode->data.length);
   return inode;
 }
 
@@ -295,7 +304,7 @@ struct inode *
 inode_reopen (struct inode *inode)
 {
 
-  printf("in inode reopen\n");
+  //printf("in inode reopen\n");
   if (inode != NULL)
     inode->open_cnt++;
 
@@ -496,7 +505,7 @@ off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                 off_t offset) 
 {
-  printf("offset %d\n", offset);
+  //printf("offset %d\n", offset);
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
@@ -506,9 +515,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   while (size > 0) 
     {
+
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
-      printf("secotrosdfiajfe %d\n", sector_idx);
+      //printf("sector index in inode_write_at() %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -516,6 +526,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
       int min_left = inode_left < sector_left ? inode_left : sector_left;
 
+      printf("size: %d min_left: %d sector_left: %d\n", size, min_left, sector_left);
+      bool flag = false;
       /* Number of bytes to actually write into this sector. */
 
       // printf ("trying to write with size %d & minleft = %d\n", size, min_left);
@@ -524,7 +536,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
         chunk_size = size;
       }
       else {
-        printf("secotr+lfet %d\n", sector_left);
+        // printf("sector left %d\n", sector_left);
         if (size > min_left && sector_left > size)
         {
          inode->data.length += size;
@@ -533,45 +545,28 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
         }
         else
         {
-          printf("size %d is greater than min_left %d\n", size, sector_left);
+
           inode->data.length += sector_left;
           chunk_size = inode_length (inode) - offset;
-          printf("chunk size: %d\n", chunk_size);
-          block_sector_t new_inode_sector = 0;
-          int size_left = size - chunk_size;
-          int sector_cnt = size_left / 512;
-          int rem = size_left % 512;
-          if (rem != 0)
-            sector_cnt += 1;
-          if (size_left)
-          printf("size left %d, sector count %d\n", size_left, sector_cnt);
-          free_map_allocate (1, &new_inode_sector);
-          printf("after freemap call: %d\n", new_inode_sector);
-          inode_create(new_inode_sector, sector_cnt);
-
-          inode->data.length += size_left;
-          inode_open(inode->sector);
           sector_idx = byte_to_sector (inode, offset);
-          printf("sector_idx after %d\n", sector_idx);
+          printf("chunk_size: %d\n", chunk_size);
+          flag = true;
         }
       }
 
       // int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0) {
-        //printf("hey\n\n\n");
+        //// printf("hey\n\n\n");
         break;
       }
 
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
           /* Write full sector directly to disk. */
-          printf ("writing sector to disk, sector_idx: %d\n", sector_idx);
           block_write (fs_device, sector_idx, buffer + bytes_written);
         }
       else 
         {
-           printf("in else statement \n");
-           printf("secotr index %d\n", sector_idx);
           /* We need a bounce buffer. */
           if (bounce == NULL) 
             {
@@ -583,24 +578,58 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
           /* If the sector contains data before or after the chunk
              we're writing, then we need to read in the sector
              first.  Otherwise we start with a sector of all zeros. */
+             printf("sector_ofs: %d\n", sector_ofs);
           if (sector_ofs > 0 || chunk_size < sector_left) 
             block_read (fs_device, sector_idx, bounce);
           else
             memset (bounce, 0, BLOCK_SECTOR_SIZE);
           memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
           block_write (fs_device, sector_idx, bounce);
-          printf("after block write in the else\n");
+          // printf("after block write in the else\n");
         }
 
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
       bytes_written += chunk_size;
+
+      if (flag)
+      {
+          printf("size in flag: %d\n", size);
+          int sector_cnt = size / 512;
+          int rem = size % 512;
+          if (rem != 0)
+            sector_cnt += 1;
+
+          printf("sector count in flag: %d\n", sector_cnt);
+          block_sector_t new_inode_sector;
+          free_map_allocate (1, &new_inode_sector);
+          inode_create(new_inode_sector, sector_cnt);
+
+          inode->data.length += size;
+          inode_open(inode->sector);
+          sector_idx = byte_to_sector (inode, offset);
+          // const void *new_buffer = (void *) malloc (size);
+          //memcpy (new_buffer, buffer, 6);
+
+          printf("after open\n");
+          //inode_write_at(inode, buffer, size, offset);
+          // printf("sector_idx after %d\n", sector_idx);
+          //size -= chunk_size;
+          //offset += chunk_size;
+          //bytes_written += chunk_size;
+      }
+      
+      // size -= chunk_size;
+      
+      
+      printf("size before loop exit: %d\n", size);
+
     }
   free (bounce);
 
-  printf("file size %d\n\n\n\n\n", inode->data.length);
-  printf("bytes written %d\n", bytes_written);
+  printf("file size %d\n", inode->data.length);
+  // printf("bytes written %d\n", bytes_written);
   return bytes_written;
 }
 
