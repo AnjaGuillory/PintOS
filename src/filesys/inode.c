@@ -145,7 +145,7 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length)
 {
-  printf("in inode create with sector: %d \n", sector);
+  printf("in inode create with sector: %d %d\n", sector, length);
   struct inode_disk *disk_inode = NULL;
   bool success = false;
 
@@ -286,6 +286,7 @@ inode_open (block_sector_t sector)
     }
   }
   
+  printf("inode length %d\n", inode->data.length);
   return inode;
 }
 
@@ -297,77 +298,91 @@ inode_reopen (struct inode *inode)
   printf("in inode reopen\n");
   if (inode != NULL)
     inode->open_cnt++;
-  size_t original = inode->original_length;
-  printf("original %d\n", original);
-  inode->original_length += inode->data.length;
-  printf("original_length %d\n", inode->original_length);
 
-  int i;
-  for (i = 0; original > 5120; i++)
-  {
-    printf("hey\n");
-    /* Checks if first level indirect block has not been allocated */
-    if (inode->firstLevel == NULL)
-    {
-      inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
-      inode->firstLevel->sector = (inode->sector) + 11;
+
+
+  // size_t original = inode->data.length;
+  // printf("original %d\n", original);
+  // inode->original_length += inode->data.length;
+  // printf("original_length %d\n", inode->original_length);
+
+  // int i;
+  // for (i = 0; original > 0; i++)
+  // {
+  //   printf("hey\n");
+  //   /* Checks if first level indirect block has not been allocated */
+  //   if (original < 5120)
+  //   {
+  //     char zeros[original-inode->original_length];
+  //     block_write (fs_device, inode->sector, zeros);
+  //     original = 0;
+
+  //     //block_read (fs_device, inode->sector, &inode->data);
+  //   }
+
+
+
+  //   else if (inode->firstLevel == NULL)
+  //   {
+  //     inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
+  //     inode->firstLevel->sector = (inode->sector) + 11;
       
-      /* Point firstLevel data blocks to zeroed disk block */
-      inode->firstLevel->data = inode->data;
-      inode->firstLevel->data.start = inode->firstLevel->sector;
+  //     /* Point firstLevel data blocks to zeroed disk block */
+  //     inode->firstLevel->data = inode->data;
+  //     inode->firstLevel->data.start = inode->firstLevel->sector;
       
-      /* Change the length of original inode to reflect the other half
-        being in the indirect block */
-      inode->data.length = (BLOCK_SECTOR_SIZE*10);
-      original -= (BLOCK_SECTOR_SIZE*10);
+  //     /* Change the length of original inode to reflect the other half
+  //       being in the indirect block */
+  //     inode->data.length = (BLOCK_SECTOR_SIZE*10);
+  //     original -= (BLOCK_SECTOR_SIZE*10);
 
-      /* Checks if file fills out the whole indirect block */
-      if (original > (BLOCK_SECTOR_SIZE*1024))
-      {
-        inode->firstLevel->data.length = (BLOCK_SECTOR_SIZE*1024);
-        original -= (BLOCK_SECTOR_SIZE*1024);
-      }
-      else {
-        inode->firstLevel->data.length = original;
-        original = 0;
-      }
+  //     /* Checks if file fills out the whole indirect block */
+  //     if (original > (BLOCK_SECTOR_SIZE*1024))
+  //     {
+  //       inode->firstLevel->data.length = (BLOCK_SECTOR_SIZE*1024);
+  //       original -= (BLOCK_SECTOR_SIZE*1024);
+  //     }
+  //     else {
+  //       inode->firstLevel->data.length = original;
+  //       original = 0;
+  //     }
       
-      /* Allocate secondLevel indirect in case it is needed */
-      inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
-      inode->secondLevel->level[0] = NULL;
-      i--;
-    }
-    else
-    {
-      inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
+  //     /* Allocate secondLevel indirect in case it is needed */
+  //     inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
+  //     inode->secondLevel->level[0] = NULL;
+  //     i--;
+  //   }
+  //   else
+  //   {
+  //     inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
 
-      /* Which sector wa the last to be determined */
-      if (i == 0)
-        inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 1025;
-      else
-        inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 1025;
+  //     /* Which sector wa the last to be determined */
+  //     if (i == 0)
+  //       inode->secondLevel->level[i]->sector = (inode->firstLevel->sector) + 1025;
+  //     else
+  //       inode->secondLevel->level[i]->sector = (inode->secondLevel->level[i-1]->sector) + 1025;
 
-      /* Point indirect block to disk */
-      inode->secondLevel->level[i]->data = inode->data;
-      inode->secondLevel->level[i]->data.start = inode->secondLevel->level[i]->sector;
+  //     /* Point indirect block to disk */
+  //     inode->secondLevel->level[i]->data = inode->data;
+  //     inode->secondLevel->level[i]->data.start = inode->secondLevel->level[i]->sector;
 
-      /* Checks if file fills out the whole (current) indirect block */
-      if (original > (BLOCK_SECTOR_SIZE*1024))
-      {
-        inode->secondLevel->level[i]->data.length = (BLOCK_SECTOR_SIZE*1024);
-        original -= (BLOCK_SECTOR_SIZE*1024);
-      }
-      else
-      {
-        inode->secondLevel->level[i]->data.length = original;
-        original = 0;
-      } 
+  //     /* Checks if file fills out the whole (current) indirect block */
+  //     if (original > (BLOCK_SECTOR_SIZE*1024))
+  //     {
+  //       inode->secondLevel->level[i]->data.length = (BLOCK_SECTOR_SIZE*1024);
+  //       original -= (BLOCK_SECTOR_SIZE*1024);
+  //     }
+  //     else
+  //     {
+  //       inode->secondLevel->level[i]->data.length = original;
+  //       original = 0;
+  //     } 
 
-      /* Make sure the next indirect block is not allocated */
-      if (i != 4)
-        inode->secondLevel->level[i+1] = NULL;
-    }
-  }
+  //     /* Make sure the next indirect block is not allocated */
+  //     if (i != 4)
+  //       inode->secondLevel->level[i+1] = NULL;
+  //   }
+  // }
   
   return inode;
 }
@@ -385,7 +400,7 @@ inode_get_inumber (const struct inode *inode)
 void
 inode_close (struct inode *inode) 
 {
-  printf("in inode close \n");
+  //printf("in inode close \n");
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
@@ -481,6 +496,7 @@ off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                 off_t offset) 
 {
+  printf("offset %d\n", offset);
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
@@ -492,6 +508,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     {
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
+      printf("secotrosdfiajfe %d\n", sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -504,31 +521,46 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       // printf ("trying to write with size %d & minleft = %d\n", size, min_left);
       int chunk_size;
       if (size <= min_left){
-         // printf("size is less than or equal to min_left\n");
         chunk_size = size;
       }
       else {
-         printf("size is greater than min_left\n");
-        chunk_size = min_left;
-        printf("chunk size: %d\n", chunk_size);
-        block_sector_t new_inode_sector = 0;
-        int size_left = size - min_left;
-        int sector_cnt = size_left / 512;
-        int rem = size_left % 512;
-        if (rem != 0)
-          sector_cnt += 1;
-        printf("size left %d, sector count %d\n", size_left, sector_cnt);
-        free_map_allocate (1, &new_inode_sector);
-        printf("after freemap call: %d\n", sector_idx);
-        inode_create(new_inode_sector, sector_cnt);
-        inode_open(inode->sector);
-        sector_idx = byte_to_sector (inode, offset);
-        printf("sector_idx after %d\n", sector_idx);
+        printf("secotr+lfet %d\n", sector_left);
+        if (size > min_left && sector_left > size)
+        {
+         inode->data.length += size;
+         sector_idx = byte_to_sector (inode, offset);
+         chunk_size = size;        
+        }
+        else
+        {
+          printf("size %d is greater than min_left %d\n", size, sector_left);
+          inode->data.length += sector_left;
+          chunk_size = inode_length (inode) - offset;
+          printf("chunk size: %d\n", chunk_size);
+          block_sector_t new_inode_sector = 0;
+          int size_left = size - chunk_size;
+          int sector_cnt = size_left / 512;
+          int rem = size_left % 512;
+          if (rem != 0)
+            sector_cnt += 1;
+          if (size_left)
+          printf("size left %d, sector count %d\n", size_left, sector_cnt);
+          free_map_allocate (1, &new_inode_sector);
+          printf("after freemap call: %d\n", new_inode_sector);
+          inode_create(new_inode_sector, sector_cnt);
+
+          inode->data.length += size_left;
+          inode_open(inode->sector);
+          sector_idx = byte_to_sector (inode, offset);
+          printf("sector_idx after %d\n", sector_idx);
+        }
       }
 
       // int chunk_size = size < min_left ? size : min_left;
-      if (chunk_size <= 0)
+      if (chunk_size <= 0) {
+        //printf("hey\n\n\n");
         break;
+      }
 
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
@@ -538,7 +570,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
         }
       else 
         {
-          // printf("in else statement \n");
+           printf("in else statement \n");
+           printf("secotr index %d\n", sector_idx);
           /* We need a bounce buffer. */
           if (bounce == NULL) 
             {
@@ -556,6 +589,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
             memset (bounce, 0, BLOCK_SECTOR_SIZE);
           memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
           block_write (fs_device, sector_idx, bounce);
+          printf("after block write in the else\n");
         }
 
       /* Advance. */
@@ -565,6 +599,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     }
   free (bounce);
 
+  printf("file size %d\n\n\n\n\n", inode->data.length);
+  printf("bytes written %d\n", bytes_written);
   return bytes_written;
 }
 
@@ -594,3 +630,34 @@ inode_length (const struct inode *inode)
 {
   return total_length (inode);
 }
+
+/*struct inode *
+next_Block (struct inode *inode)
+{
+  if (inode->firstLevel == NULL)
+  {
+    inode->firstLevel = (struct firstIB *) malloc (sizeof (struct firstIB));
+    
+    inode->secondLevel = (struct secondIB *) malloc (sizeof (struct secondIB));
+    inode->secondLevel->level[0] = NULL;
+    
+    return inode->firstLevel;
+  }
+  else
+  {
+    int i;
+    for (i = 0; i < 4; i++)
+    {
+      if (inode->secondLevel->level[i] == NULL) {
+        inode->secondLevel->level[i] = (struct firstIB *) malloc (sizeof (struct firstIB));
+        
+        if (i != 3)
+          inode->secondLevel->level[i] = NULL;
+
+        return inode->secondLevel->level[i];
+      }
+    }
+  }
+
+  return NULL;
+}*/
