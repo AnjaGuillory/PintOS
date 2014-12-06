@@ -1,4 +1,3 @@
-#include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include <string.h>
@@ -15,6 +14,8 @@
 #include "userprog/process.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "userprog/syscall.h"
+#include "filesys/inode.h"
 
 /* Andrea drove here */
 
@@ -44,6 +45,11 @@ bool remove (const char *file);
 int* getArgs (int* myEsp, int count);
 pid_t exec (const char *cmd_line);
 int checkPointer (const void * buffer);
+bool chdir (const char *dir); 
+bool mkdir (const char *dir);
+bool readdir (int fd, char *name); 
+bool isdir (int fd);
+int inumber (int fd);
 
 void
 syscall_init (void) 
@@ -171,6 +177,50 @@ syscall_handler (struct intr_frame *f UNUSED)
       close (args[0]);
       break;
   } 
+}
+
+/* Driver: Anja */
+bool readdir (int fd, char *name) 
+{
+  struct thread *cur = thread_current ();
+
+  /* Gets the file from the files array */
+  struct file * fil = cur->files[fd];
+
+  if (isdir(fil))
+  {
+    /* File's inode. */
+    struct inode *fil_inode = fil->inode; 
+
+    struct dir *directory = dir_open(fil->inode); 
+
+    dir_readdir (directory, name); 
+  }
+  return true;
+}
+
+/* Driver: Andrea */
+bool isdir (int fd) 
+{
+  struct thread *cur = thread_current ();
+  /* Gets the file from the files array */
+  struct file * fil = cur->files[fd];
+  /* File's inode. */
+  struct inode *fil_inode = fil->inode;  
+  
+  return (bool) (fil_inode->flag_bool_dir);
+}
+
+/* Driver: Dara */
+int inumber (int fd)
+{
+  struct thread *cur = thread_current ();
+  /* Gets the file from the files array */
+  struct file * fil = cur->files[fd];
+  /* File's inode. */
+  struct inode *fil_inode = fil->inode;        
+  
+  return fil->inode->sector;
 }
 
 /* Dara drove here */
@@ -533,4 +583,3 @@ int checkPointer (const void * buffer)
   /* Return successful otherwise */
   return 0;
 }
-

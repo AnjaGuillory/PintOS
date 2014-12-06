@@ -5,19 +5,23 @@
 #include "filesys/off_t.h"
 #include "devices/block.h"
 #include "lib/kernel/list.h"
+
+#define STOP 130
+#define DIRECT_STOP 63488
+#define INDIRECT_BLOCK_STOP 129024
+
+/* Driver: Andrea and Dara */
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    //block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
     
-    block_sector_t sectors[124];
-    block_sector_t indirect;
-    block_sector_t double_indirect;
-    //uint32_t unused[124];               /* Not used. */
-    //block_sector_t sectors[126];               /* Not used. */
+    block_sector_t sectors[124];        /* Disk location, direct sectors */  
+    block_sector_t indirect;            /* Sector for indirect block */
+    block_sector_t double_indirect;     /* Sector for double indirect blocks */
   };
 
 /* In-memory inode. */
@@ -29,6 +33,22 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+    int flag_bool_dir;                  /* Indicates if directory inode */
+  };
+
+/* Driver: Anja */
+
+/* Struct that represents first level indirect block */
+struct firstIB
+  {
+    block_sector_t sectors[128];         /* Disk location */         
+  };
+
+/* Struct that represents second level indirect block */
+struct secondIB
+  {
+    struct firstIB *level[4];           /* Array of first level indirect blocks */
+    uint32_t unused[124];               /* Not used */
   };
 
 
